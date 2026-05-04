@@ -24,7 +24,11 @@ export const createOrderController = (orderService: OrderService) => {
     }
 
     const outcome = await orderService.createOrder(result.data);
-    res.status(outcome.status).json({ data: outcome.data });
+    res.status(outcome.status).json(
+      outcome.success
+        ? { data: outcome.data }
+        : { error: outcome.error }
+    );
   };
 
   const getOrder = async (req: Request, res: Response): Promise<void> => {

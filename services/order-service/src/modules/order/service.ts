@@ -9,6 +9,16 @@ type ServiceResult<T> =
   | { success: true; status: number; data: T }
   | { success: false; status: number; error: { code: string; message: string } };
 
+type FetchResult =
+  | { success: true; status: number; data: unknown; durationMs: number }
+  | { success: false; error: { code: string; message: string }; durationMs: number };
+
+type MenuItem = {
+  id: string;
+  price: string | number;
+  available: boolean;
+};
+
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["preparing", "cancelled"],
@@ -18,17 +28,131 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   cancelled: [],
 };
 
-export const createOrderService = (prisma: PrismaClient) => {
+export const createOrderService = (
+  prisma: PrismaClient,
+  userServiceUrl: string,
+  restaurantServiceUrl: string,
+  paymentServiceUrl: string | undefined,
+) => {
   const logger = getLogger();
+
+  const callService = async (
+    url: string,
+    serviceName: string,
+  ): Promise<FetchResult> => {
+    const start = Date.now();
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(5000),
+      });
+      const durationMs = Date.now() - start;
+      const body = await response.json();
+
+      logger.info(
+        { svc: serviceName, status: response.status, ms: durationMs },
+        "Inter-service call completed",
+      );
+
+      return { success: true, status: response.status, data: body, durationMs };
+    } catch (error: unknown) {
+      const durationMs = Date.now() - start;
+      const err = error instanceof Error ? error : new Error(String(error));
+      const isTimeout = err.name === "AbortError";
+
+      logger.warn(
+        { svc: serviceName, ms: durationMs, timeout: isTimeout, err: err.message },
+        "Inter-service call failed",
+      );
+
+      return {
+        success: false,
+        error: { code: "SERVICE_UNREACHABLE", message: `${serviceName} is unreachable` },
+        durationMs,
+      };
+    }
+  };
 
   const createOrder = async (
     input: CreateOrderInput,
-  ) => {
-    const totalAmount = input.items.reduce(
-      (sum, item) => sum + item.quantity * item.price,
-      0,
+  ): Promise<ServiceResult<unknown>> => {
+    // 1. Validate customer exists
+    const userResult = await callService(
+      `${userServiceUrl}/users/${input.customerId}`,
+      "User Service",
     );
 
+    if (!userResult.success) {
+      return {
+        success: false,
+        status: 503,
+        error: { code: "SERVICE_UNAVAILABLE", message: "User Service unavailable" },
+      };
+    }
+
+    if (userResult.status !== 200) {
+      return {
+        success: false,
+        status: 400,
+        error: { code: "CUSTOMER_NOT_FOUND", message: "Customer not found" },
+      };
+    }
+
+    // 2. Validate restaurant exists and get menu items
+    const restaurantResult = await callService(
+      `${restaurantServiceUrl}/restaurants/${input.restaurantId}`,
+      "Restaurant Service",
+    );
+
+    if (!restaurantResult.success) {
+      return {
+        success: false,
+        status: 503,
+        error: { code: "SERVICE_UNAVAILABLE", message: "Restaurant Service unavailable" },
+      };
+    }
+
+    if (restaurantResult.status !== 200) {
+      return {
+        success: false,
+        status: 400,
+        error: { code: "RESTAURANT_NOT_FOUND", message: "Restaurant not found" },
+      };
+    }
+
+    // Extract menu items from restaurant response
+    // Restaurant Service returns: { data: { ..., menuItems: [...] } }
+    const restaurantBody = restaurantResult.data as {
+      data?: { menuItems?: MenuItem[] };
+    };
+    const menuItems: MenuItem[] = restaurantBody?.data?.menuItems ?? [];
+    const menuMap = new Map(menuItems.map((item) => [item.id, item]));
+
+    // 3. Validate each order item against the menu
+    for (const orderItem of input.items) {
+      const menuItem = menuMap.get(orderItem.itemId);
+      if (!menuItem) {
+        return {
+          success: false,
+          status: 400,
+          error: { code: "ITEM_NOT_FOUND", message: `Item ${orderItem.itemId} not found` },
+        };
+      }
+      if (!menuItem.available) {
+        return {
+          success: false,
+          status: 400,
+          error: { code: "ITEM_UNAVAILABLE", message: `Item ${orderItem.itemId} is not available` },
+        };
+      }
+    }
+
+    // 4. Calculate total from actual menu prices (ignore client-supplied prices)
+    const totalAmount = input.items.reduce((sum, item) => {
+      const menuItem = menuMap.get(item.itemId)!;
+      return sum + item.quantity * Number(menuItem.price);
+    }, 0);
+
+    // 5. Save order
     const [order] = await prisma.$transaction([
       prisma.order.create({
         data: {
@@ -48,7 +172,7 @@ export const createOrderService = (prisma: PrismaClient) => {
 
     logger.info({ orderId: order.id }, "Order created");
 
-    const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL;
+    // 6. Fire-and-forget payment initiation
     if (paymentServiceUrl) {
       try {
         await fetch(`${paymentServiceUrl}/payments`, {
@@ -56,8 +180,10 @@ export const createOrderService = (prisma: PrismaClient) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             orderId: order.id,
+            customerId: input.customerId,
             amount: Number(order.totalAmount),
           }),
+          signal: AbortSignal.timeout(5000),
         });
       } catch {
         logger.warn(
@@ -69,7 +195,7 @@ export const createOrderService = (prisma: PrismaClient) => {
       logger.debug("PAYMENT_SERVICE_URL not set, skipping payment call");
     }
 
-    return { success: true as const, status: 201, data: order };
+    return { success: true, status: 201, data: order };
   };
 
   const getOrder = async (

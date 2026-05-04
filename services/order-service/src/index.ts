@@ -25,7 +25,12 @@ const main = async () => {
     process.exit(1);
   }
 
-  const orderService = createOrderService(prisma);
+  const orderService = createOrderService(
+    prisma,
+    config.USER_SERVICE_URL,
+    config.RESTAURANT_SERVICE_URL,
+    config.PAYMENT_SERVICE_URL,
+  );
 
   const app = createApp(logger, orderService, config.CORS_ORIGIN);
 

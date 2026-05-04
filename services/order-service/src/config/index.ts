@@ -10,7 +10,9 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])
     .default("info"),
-  PAYMENT_SERVICE_URL: z.string().url(),
+  USER_SERVICE_URL: z.string().url(),
+  RESTAURANT_SERVICE_URL: z.string().url(),
+  PAYMENT_SERVICE_URL: z.string().url().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

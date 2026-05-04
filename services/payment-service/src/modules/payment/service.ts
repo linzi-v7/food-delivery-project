@@ -94,7 +94,86 @@ export const createPaymentService = (
     }
   };
 
+  const validateOrder = async (
+    orderId: string,
+  ): Promise<{ valid: boolean; error?: { code: string; message: string } }> => {
+    if (!orderServiceUrl) {
+      logger.debug("ORDER_SERVICE_URL not set, skipping order validation");
+      return { valid: true };
+    }
+
+    const start = Date.now();
+    try {
+      const response = await fetch(`${orderServiceUrl}/orders/${orderId}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      const durationMs = Date.now() - start;
+
+      logger.info(
+        { svc: "Order Service", status: response.status, ms: durationMs },
+        "Order validation call completed",
+      );
+
+      if (!response.ok) {
+        return {
+          valid: false,
+          error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
+        };
+      }
+
+      return { valid: true };
+    } catch (error: unknown) {
+      const durationMs = Date.now() - start;
+      const err = error instanceof Error ? error : new Error(String(error));
+      const isTimeout = err.name === "AbortError";
+
+      logger.warn(
+        { svc: "Order Service", ms: durationMs, timeout: isTimeout, err: err.message },
+        "Order validation call failed",
+      );
+
+      return {
+        valid: false,
+        error: { code: "SERVICE_UNAVAILABLE", message: "Order Service unavailable" },
+      };
+    }
+  };
+
   const initiatePayment = async (input: InitiatePaymentInput) => {
+    // 1. Validate order exists
+    const orderCheck = await validateOrder(input.orderId);
+
+    if (!orderCheck.valid) {
+      if (orderCheck.error?.code === "SERVICE_UNAVAILABLE") {
+        return {
+          success: false as const,
+          status: 503,
+          error: { code: "SERVICE_UNAVAILABLE", message: "Order Service unavailable" },
+        };
+      }
+      return {
+        success: false as const,
+        status: 400,
+        error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
+      };
+    }
+
+    // 2. Prevent double charging — check for existing succeeded transaction
+    const existingSucceeded = await prisma.transaction.findFirst({
+      where: { orderId: input.orderId, status: "succeeded" },
+    });
+
+    if (existingSucceeded) {
+      return {
+        success: false as const,
+        status: 409,
+        error: {
+          code: "ALREADY_PAID",
+          message: "Payment has already been processed for this order",
+        },
+      };
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         orderId: input.orderId,
