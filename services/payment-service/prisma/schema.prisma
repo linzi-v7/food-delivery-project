@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Transaction {
+  transactionId String   @id @default(uuid()) @map("transaction_id")
+  orderId       String   @map("order_id")
+  customerId    String?  @map("customer_id")
+  amount        Float    @map("amount")
+  status        String   @default("pending") @map("status")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("transactions")
+}

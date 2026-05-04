@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: payment-service-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-payment_service}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-payment_service}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - payment-service-net
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payment-service-app
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      PORT: "3004"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-payment_service}
+      ORDER_SERVICE_URL: ${ORDER_SERVICE_URL:-http://order-service:3003}
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.9}
+      PAYMENT_PROCESSING_DELAY_MS: ${PAYMENT_PROCESSING_DELAY_MS:-2000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - payment-service-net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  payment-service-net:
+    driver: bridge
