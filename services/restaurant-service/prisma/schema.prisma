@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  cuisine   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  menuItems MenuItem[]
+
+  @@map("restaurants")
+}
+
+model MenuItem {
+  id           String   @id @default(uuid())
+  name         String
+  description  String
+  price        Decimal  @db.Decimal(10, 2)
+  available    Boolean  @default(true)
+  restaurantId String   @map("restaurant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("menu_items")
+}
