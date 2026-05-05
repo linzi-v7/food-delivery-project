@@ -14,6 +14,9 @@ const main = async () => {
       nodeEnv: config.NODE_ENV,
       port: config.PORT,
       logLevel: config.LOG_LEVEL,
+      userServiceUrl: config.USER_SERVICE_URL,
+      restaurantServiceUrl: config.RESTAURANT_SERVICE_URL,
+      hasJwtSecret: !!config.JWT_SECRET,
     },
     "Starting order-service"
   );
@@ -30,6 +33,7 @@ const main = async () => {
     config.USER_SERVICE_URL,
     config.RESTAURANT_SERVICE_URL,
     config.PAYMENT_SERVICE_URL,
+    config.JWT_SECRET,
   );
 
   const app = createApp(logger, orderService, config.CORS_ORIGIN);

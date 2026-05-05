@@ -2,6 +2,7 @@ import { loadConfig } from "./config/index.js";
 import { initLogger } from "./utils/logger.js";
 import { prisma } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
+import { runSeed } from "./db/seed.js";
 import { createRestaurantService } from "./modules/restaurant/service.js";
 import { createMenuService } from "./modules/menu/service.js";
 import { createApp } from "./app.js";
@@ -21,6 +22,7 @@ const main = async () => {
 
   try {
     await runMigrations();
+    await runSeed(prisma);
   } catch (error) {
     logger.error({ err: error }, "Failed to connect to database");
     process.exit(1);

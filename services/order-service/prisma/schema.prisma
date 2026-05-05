@@ -11,6 +11,7 @@ model Order {
   id              String   @id @default(uuid())
   customerId      String   @map("customer_id")
   restaurantId    String   @map("restaurant_id")
+  restaurantName  String   @map("restaurant_name")
   items           Json
   totalAmount     Decimal  @db.Decimal(10, 2) @map("total_amount")
   deliveryAddress String   @map("delivery_address")

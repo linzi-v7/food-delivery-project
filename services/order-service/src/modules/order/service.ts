@@ -1,5 +1,6 @@
 import { PrismaClient } from "../../generated/client.js";
 import { getLogger } from "../../utils/logger.js";
+import jwt from "jsonwebtoken";
 import type {
   CreateOrderInput,
   UpdateOrderStatusInput,
@@ -15,6 +16,7 @@ type FetchResult =
 
 type MenuItem = {
   id: string;
+  name: string;
   price: string | number;
   available: boolean;
 };
@@ -33,17 +35,32 @@ export const createOrderService = (
   userServiceUrl: string,
   restaurantServiceUrl: string,
   paymentServiceUrl: string | undefined,
+  jwtSecret: string | undefined,
 ) => {
   const logger = getLogger();
+
+  const generateServiceToken = (): string => {
+    if (!jwtSecret) {
+      logger.warn("JWT_SECRET not set, User Service calls will be unauthenticated");
+      return "";
+    }
+    return jwt.sign(
+      { sub: "order-service", email: "internal@food-delivery.local", role: "admin" },
+      jwtSecret,
+      { expiresIn: "60s" },
+    );
+  };
 
   const callService = async (
     url: string,
     serviceName: string,
+    init?: RequestInit,
   ): Promise<FetchResult> => {
     const start = Date.now();
     try {
       const response = await fetch(url, {
         signal: AbortSignal.timeout(5000),
+        ...init,
       });
       const durationMs = Date.now() - start;
       const body = await response.json();
@@ -72,13 +89,54 @@ export const createOrderService = (
     }
   };
 
+  const advanceStatus = async (
+    orderId: string,
+    newStatus: string,
+    note?: string,
+  ): Promise<void> => {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return;
+    if (!VALID_TRANSITIONS[order.status]?.includes(newStatus)) return;
+
+    await prisma.$transaction([
+      prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus,
+          statusHistory: {
+            create: { status: newStatus, note: note ?? null },
+          },
+        },
+      }),
+    ]);
+
+    logger.info({ orderId, from: order.status, to: newStatus }, "Order status auto-advanced");
+  };
+
+  const simulateOrderProgress = async (orderId: string): Promise<void> => {
+    const steps: Array<{ status: string; delay: number; note: string }> = [
+      { status: "preparing", delay: 3000, note: "Restaurant started preparing your order" },
+      { status: "out_for_delivery", delay: 5000, note: "Driver picked up your order" },
+      { status: "delivered", delay: 7000, note: "Order delivered successfully" },
+    ];
+
+    for (const { status, delay, note } of steps) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      await advanceStatus(orderId, status, note);
+    }
+  };
+
   const createOrder = async (
     input: CreateOrderInput,
   ): Promise<ServiceResult<unknown>> => {
     // 1. Validate customer exists
+    const authToken = generateServiceToken();
     const userResult = await callService(
       `${userServiceUrl}/users/${input.customerId}`,
       "User Service",
+      authToken
+        ? { headers: { Authorization: `Bearer ${authToken}` } }
+        : undefined,
     );
 
     if (!userResult.success) {
@@ -97,7 +155,42 @@ export const createOrderService = (
       };
     }
 
-    // 2. Validate restaurant exists and get menu items
+    // 2. Verify payment transaction if provided (payment happened before order)
+    if (input.transactionId) {
+      const txnResult = await callService(
+        `${paymentServiceUrl}/payments/${input.transactionId}`,
+        "Payment Service",
+      );
+
+      if (!txnResult.success) {
+        return {
+          success: false,
+          status: 503,
+          error: { code: "SERVICE_UNAVAILABLE", message: "Payment Service unavailable" },
+        };
+      }
+
+      if (txnResult.status !== 200) {
+        return {
+          success: false,
+          status: 400,
+          error: { code: "TRANSACTION_NOT_FOUND", message: "Transaction not found" },
+        };
+      }
+
+      const txnBody = txnResult.data as { data?: { status?: string } };
+      if (txnBody?.data?.status !== "succeeded") {
+        return {
+          success: false,
+          status: 402,
+          error: { code: "PAYMENT_FAILED", message: "Payment has not been completed successfully" },
+        };
+      }
+
+      logger.info({ transactionId: input.transactionId }, "Transaction verified");
+    }
+
+    // 3. Validate restaurant exists and get menu items
     const restaurantResult = await callService(
       `${restaurantServiceUrl}/restaurants/${input.restaurantId}`,
       "Restaurant Service",
@@ -119,15 +212,25 @@ export const createOrderService = (
       };
     }
 
-    // Extract menu items from restaurant response
-    // Restaurant Service returns: { data: { ..., menuItems: [...] } }
+    // Extract restaurant and menu items from response
+    // Restaurant Service returns: { data: { name, ..., menuItems: [...], available: boolean } }
     const restaurantBody = restaurantResult.data as {
-      data?: { menuItems?: MenuItem[] };
+      data?: { name?: string; available?: boolean; menuItems?: MenuItem[] };
     };
+    const restaurantName = restaurantBody?.data?.name ?? input.restaurantId;
     const menuItems: MenuItem[] = restaurantBody?.data?.menuItems ?? [];
     const menuMap = new Map(menuItems.map((item) => [item.id, item]));
 
-    // 3. Validate each order item against the menu
+    // 4. Check restaurant availability
+    if (restaurantBody?.data?.available === false) {
+      return {
+        success: false,
+        status: 400,
+        error: { code: "RESTAURANT_UNAVAILABLE", message: "Restaurant is currently unavailable" },
+      };
+    }
+
+    // 5. Validate each order item against the menu
     for (const orderItem of input.items) {
       const menuItem = menuMap.get(orderItem.itemId);
       if (!menuItem) {
@@ -146,53 +249,48 @@ export const createOrderService = (
       }
     }
 
-    // 4. Calculate total from actual menu prices (ignore client-supplied prices)
-    const totalAmount = input.items.reduce((sum, item) => {
-      const menuItem = menuMap.get(item.itemId)!;
-      return sum + item.quantity * Number(menuItem.price);
-    }, 0);
+    // 6. Enrich items with server-authoritative price and name
+    const enrichedItems = input.items.map((orderItem) => {
+      const menuItem = menuMap.get(orderItem.itemId)!;
+      return {
+        itemId: orderItem.itemId,
+        quantity: orderItem.quantity,
+        name: menuItem.name,
+        price: Number(menuItem.price),
+      };
+    });
 
-    // 5. Save order
+    // 7. Calculate total from actual menu prices
+    const totalAmount = enrichedItems.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0,
+    );
+
+    // 8. Save order — confirmed if payment verified, pending otherwise
+    const initialStatus = input.transactionId ? "confirmed" : "pending";
     const [order] = await prisma.$transaction([
       prisma.order.create({
         data: {
           customerId: input.customerId,
           restaurantId: input.restaurantId,
-          items: input.items,
+          restaurantName,
+          items: enrichedItems,
           totalAmount,
           deliveryAddress: input.deliveryAddress,
-          status: "pending",
+          status: initialStatus,
           statusHistory: {
-            create: { status: "pending", note: "Order created" },
+            create: { status: initialStatus, note: "Order created" },
           },
         },
         include: { statusHistory: true },
       }),
     ]);
 
-    logger.info({ orderId: order.id }, "Order created");
+    logger.info({ orderId: order.id, status: initialStatus }, "Order created");
 
-    // 6. Fire-and-forget payment initiation
-    if (paymentServiceUrl) {
-      try {
-        await fetch(`${paymentServiceUrl}/payments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: order.id,
-            customerId: input.customerId,
-            amount: Number(order.totalAmount),
-          }),
-          signal: AbortSignal.timeout(5000),
-        });
-      } catch {
-        logger.warn(
-          { orderId: order.id },
-          "Payment service unreachable, order created without payment",
-        );
-      }
-    } else {
-      logger.debug("PAYMENT_SERVICE_URL not set, skipping payment call");
+    // 9. Simulate order progress (confirmed → preparing → out_for_delivery → delivered)
+    if (input.transactionId) {
+      void simulateOrderProgress(order.id);
     }
 
     return { success: true, status: 201, data: order };

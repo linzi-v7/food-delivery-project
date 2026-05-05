@@ -29,7 +29,6 @@ const main = async () => {
 
   const paymentService = createPaymentService(
     prisma,
-    config.ORDER_SERVICE_URL,
     config.PAYMENT_SUCCESS_RATE,
     config.PAYMENT_PROCESSING_DELAY_MS,
   );

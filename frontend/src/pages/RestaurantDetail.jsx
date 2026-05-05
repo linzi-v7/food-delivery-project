@@ -28,44 +28,71 @@ const RestaurantDetail = () => {
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!restaurant) return <div className="loading">Restaurant not found.</div>;
+
+  const isAvailable = restaurant.available !== false;
 
   return (
     <div>
       <Link to="/restaurants" className="back-link">&larr; Back to restaurants</Link>
+
       <div className="detail-card">
-        <h2>{restaurant.name}</h2>
-        <dl>
-          <dt>Cuisine</dt><dd>{restaurant.cuisine || 'Various'}</dd>
-          <dt>Address</dt><dd>{restaurant.address || 'Not specified'}</dd>
-          <dt>Phone</dt><dd>{restaurant.phone || 'Not available'}</dd>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-md)' }}>
+          <div>
+            <h2 style={{ margin: 0 }}>{restaurant.name}</h2>
+            {restaurant.cuisine && (
+              <span className="cuisine-badge" style={{ marginTop: 'var(--space-sm)', display: 'inline-block' }}>
+                {restaurant.cuisine}
+              </span>
+            )}
+          </div>
+          <span className={`availability-badge ${isAvailable ? 'open' : 'closed'}`}>
+            {isAvailable ? '\u25CF Available' : '\u25CB Closed'}
+          </span>
+        </div>
+        <dl style={{ marginTop: 'var(--space-md)' }}>
+          <dt>Address</dt>
+          <dd>{restaurant.address || 'Not specified'}</dd>
         </dl>
       </div>
 
-      <h3 style={{ margin: '1.5rem 0 1rem' }}>Menu ({menu.length} items)</h3>
-      {menu.length === 0 ? (
-        <p className="loading">No menu items available.</p>
-      ) : (
-        <ul className="list">
-          {menu.map((item) => (
-            <li key={item.id} className="list-item">
-              <div>
-                <h3>{item.name}</h3>
-                <p>{item.description || ''}</p>
-              </div>
-              <span style={{ fontWeight: 600 }}>${Number(item.price).toFixed(2)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <Link to={`/order?restaurantId=${id}`} className="btn btn-primary" style={{ display: 'inline-block', width: 'auto' }}>
-          Place Order from {restaurant.name}
-        </Link>
+      <div className="page-actions" style={{ marginTop: 'var(--space-lg)', marginBottom: 'var(--space-md)' }}>
+        <h3 style={{ margin: 0, fontWeight: 600 }}>Menu &mdash; {menu.length} items</h3>
+        {isAvailable && (
+          <Link to={`/order?restaurantId=${id}`} className="btn btn-primary">
+            Order from {restaurant.name}
+          </Link>
+        )}
       </div>
+
+      {menu.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">&#128196;</div>
+          <h3>No menu items</h3>
+          <p>This restaurant hasn't added any menu items yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+          {menu.map((item) => (
+            <div key={item.id} className={`menu-item-card ${!item.available ? 'unavailable' : ''}`}>
+              <div className="item-info">
+                <h4>
+                  {item.name}
+                  {!item.available && (
+                    <span style={{ color: 'var(--color-error)', fontSize: '0.72rem', marginLeft: '0.5rem', fontWeight: 600 }}>
+                      UNAVAILABLE
+                    </span>
+                  )}
+                </h4>
+                {item.description && <p>{item.description}</p>}
+              </div>
+              <span className="item-price">${Number(item.price).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

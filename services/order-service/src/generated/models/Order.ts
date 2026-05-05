@@ -38,6 +38,7 @@ export type OrderMinAggregateOutputType = {
   id: string | null
   customerId: string | null
   restaurantId: string | null
+  restaurantName: string | null
   totalAmount: runtime.Decimal | null
   deliveryAddress: string | null
   status: string | null
@@ -49,6 +50,7 @@ export type OrderMaxAggregateOutputType = {
   id: string | null
   customerId: string | null
   restaurantId: string | null
+  restaurantName: string | null
   totalAmount: runtime.Decimal | null
   deliveryAddress: string | null
   status: string | null
@@ -60,6 +62,7 @@ export type OrderCountAggregateOutputType = {
   id: number
   customerId: number
   restaurantId: number
+  restaurantName: number
   items: number
   totalAmount: number
   deliveryAddress: number
@@ -82,6 +85,7 @@ export type OrderMinAggregateInputType = {
   id?: true
   customerId?: true
   restaurantId?: true
+  restaurantName?: true
   totalAmount?: true
   deliveryAddress?: true
   status?: true
@@ -93,6 +97,7 @@ export type OrderMaxAggregateInputType = {
   id?: true
   customerId?: true
   restaurantId?: true
+  restaurantName?: true
   totalAmount?: true
   deliveryAddress?: true
   status?: true
@@ -104,6 +109,7 @@ export type OrderCountAggregateInputType = {
   id?: true
   customerId?: true
   restaurantId?: true
+  restaurantName?: true
   items?: true
   totalAmount?: true
   deliveryAddress?: true
@@ -203,6 +209,7 @@ export type OrderGroupByOutputType = {
   id: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: runtime.JsonValue
   totalAmount: runtime.Decimal
   deliveryAddress: string
@@ -238,6 +245,7 @@ export type OrderWhereInput = {
   id?: Prisma.StringFilter<"Order"> | string
   customerId?: Prisma.StringFilter<"Order"> | string
   restaurantId?: Prisma.StringFilter<"Order"> | string
+  restaurantName?: Prisma.StringFilter<"Order"> | string
   items?: Prisma.JsonFilter<"Order">
   totalAmount?: Prisma.DecimalFilter<"Order"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFilter<"Order"> | string
@@ -251,6 +259,7 @@ export type OrderOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   customerId?: Prisma.SortOrder
   restaurantId?: Prisma.SortOrder
+  restaurantName?: Prisma.SortOrder
   items?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
   deliveryAddress?: Prisma.SortOrder
@@ -267,6 +276,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.OrderWhereInput | Prisma.OrderWhereInput[]
   customerId?: Prisma.StringFilter<"Order"> | string
   restaurantId?: Prisma.StringFilter<"Order"> | string
+  restaurantName?: Prisma.StringFilter<"Order"> | string
   items?: Prisma.JsonFilter<"Order">
   totalAmount?: Prisma.DecimalFilter<"Order"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFilter<"Order"> | string
@@ -280,6 +290,7 @@ export type OrderOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   customerId?: Prisma.SortOrder
   restaurantId?: Prisma.SortOrder
+  restaurantName?: Prisma.SortOrder
   items?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
   deliveryAddress?: Prisma.SortOrder
@@ -300,6 +311,7 @@ export type OrderScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Order"> | string
   customerId?: Prisma.StringWithAggregatesFilter<"Order"> | string
   restaurantId?: Prisma.StringWithAggregatesFilter<"Order"> | string
+  restaurantName?: Prisma.StringWithAggregatesFilter<"Order"> | string
   items?: Prisma.JsonWithAggregatesFilter<"Order">
   totalAmount?: Prisma.DecimalWithAggregatesFilter<"Order"> | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringWithAggregatesFilter<"Order"> | string
@@ -312,6 +324,7 @@ export type OrderCreateInput = {
   id?: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress: string
@@ -325,6 +338,7 @@ export type OrderUncheckedCreateInput = {
   id?: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress: string
@@ -338,6 +352,7 @@ export type OrderUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -351,6 +366,7 @@ export type OrderUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -364,6 +380,7 @@ export type OrderCreateManyInput = {
   id?: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress: string
@@ -376,6 +393,7 @@ export type OrderUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -388,6 +406,7 @@ export type OrderUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -400,6 +419,7 @@ export type OrderCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   customerId?: Prisma.SortOrder
   restaurantId?: Prisma.SortOrder
+  restaurantName?: Prisma.SortOrder
   items?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
   deliveryAddress?: Prisma.SortOrder
@@ -416,6 +436,7 @@ export type OrderMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   customerId?: Prisma.SortOrder
   restaurantId?: Prisma.SortOrder
+  restaurantName?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
   deliveryAddress?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -427,6 +448,7 @@ export type OrderMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   customerId?: Prisma.SortOrder
   restaurantId?: Prisma.SortOrder
+  restaurantName?: Prisma.SortOrder
   totalAmount?: Prisma.SortOrder
   deliveryAddress?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -477,6 +499,7 @@ export type OrderCreateWithoutStatusHistoryInput = {
   id?: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress: string
@@ -489,6 +512,7 @@ export type OrderUncheckedCreateWithoutStatusHistoryInput = {
   id?: string
   customerId: string
   restaurantId: string
+  restaurantName: string
   items: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount: runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress: string
@@ -517,6 +541,7 @@ export type OrderUpdateWithoutStatusHistoryInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -529,6 +554,7 @@ export type OrderUncheckedUpdateWithoutStatusHistoryInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   customerId?: Prisma.StringFieldUpdateOperationsInput | string
   restaurantId?: Prisma.StringFieldUpdateOperationsInput | string
+  restaurantName?: Prisma.StringFieldUpdateOperationsInput | string
   items?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   totalAmount?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
   deliveryAddress?: Prisma.StringFieldUpdateOperationsInput | string
@@ -572,6 +598,7 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   id?: boolean
   customerId?: boolean
   restaurantId?: boolean
+  restaurantName?: boolean
   items?: boolean
   totalAmount?: boolean
   deliveryAddress?: boolean
@@ -586,6 +613,7 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   id?: boolean
   customerId?: boolean
   restaurantId?: boolean
+  restaurantName?: boolean
   items?: boolean
   totalAmount?: boolean
   deliveryAddress?: boolean
@@ -598,6 +626,7 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   id?: boolean
   customerId?: boolean
   restaurantId?: boolean
+  restaurantName?: boolean
   items?: boolean
   totalAmount?: boolean
   deliveryAddress?: boolean
@@ -610,6 +639,7 @@ export type OrderSelectScalar = {
   id?: boolean
   customerId?: boolean
   restaurantId?: boolean
+  restaurantName?: boolean
   items?: boolean
   totalAmount?: boolean
   deliveryAddress?: boolean
@@ -618,7 +648,7 @@ export type OrderSelectScalar = {
   updatedAt?: boolean
 }
 
-export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "restaurantId" | "items" | "totalAmount" | "deliveryAddress" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
+export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "customerId" | "restaurantId" | "restaurantName" | "items" | "totalAmount" | "deliveryAddress" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["order"]>
 export type OrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   statusHistory?: boolean | Prisma.Order$statusHistoryArgs<ExtArgs>
   _count?: boolean | Prisma.OrderCountOutputTypeDefaultArgs<ExtArgs>
@@ -635,6 +665,7 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     id: string
     customerId: string
     restaurantId: string
+    restaurantName: string
     items: runtime.JsonValue
     totalAmount: runtime.Decimal
     deliveryAddress: string
@@ -1068,6 +1099,7 @@ export interface OrderFieldRefs {
   readonly id: Prisma.FieldRef<"Order", 'String'>
   readonly customerId: Prisma.FieldRef<"Order", 'String'>
   readonly restaurantId: Prisma.FieldRef<"Order", 'String'>
+  readonly restaurantName: Prisma.FieldRef<"Order", 'String'>
   readonly items: Prisma.FieldRef<"Order", 'Json'>
   readonly totalAmount: Prisma.FieldRef<"Order", 'Decimal'>
   readonly deliveryAddress: Prisma.FieldRef<"Order", 'String'>

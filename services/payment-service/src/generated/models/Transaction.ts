@@ -193,7 +193,7 @@ export type TransactionGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inte
 
 export type TransactionGroupByOutputType = {
   transactionId: string
-  orderId: string
+  orderId: string | null
   customerId: string | null
   amount: number
   status: string
@@ -226,7 +226,7 @@ export type TransactionWhereInput = {
   OR?: Prisma.TransactionWhereInput[]
   NOT?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
   transactionId?: Prisma.StringFilter<"Transaction"> | string
-  orderId?: Prisma.StringFilter<"Transaction"> | string
+  orderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   customerId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   amount?: Prisma.FloatFilter<"Transaction"> | number
   status?: Prisma.StringFilter<"Transaction"> | string
@@ -236,7 +236,7 @@ export type TransactionWhereInput = {
 
 export type TransactionOrderByWithRelationInput = {
   transactionId?: Prisma.SortOrder
-  orderId?: Prisma.SortOrder
+  orderId?: Prisma.SortOrderInput | Prisma.SortOrder
   customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -249,7 +249,7 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
   OR?: Prisma.TransactionWhereInput[]
   NOT?: Prisma.TransactionWhereInput | Prisma.TransactionWhereInput[]
-  orderId?: Prisma.StringFilter<"Transaction"> | string
+  orderId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   customerId?: Prisma.StringNullableFilter<"Transaction"> | string | null
   amount?: Prisma.FloatFilter<"Transaction"> | number
   status?: Prisma.StringFilter<"Transaction"> | string
@@ -259,7 +259,7 @@ export type TransactionWhereUniqueInput = Prisma.AtLeast<{
 
 export type TransactionOrderByWithAggregationInput = {
   transactionId?: Prisma.SortOrder
-  orderId?: Prisma.SortOrder
+  orderId?: Prisma.SortOrderInput | Prisma.SortOrder
   customerId?: Prisma.SortOrderInput | Prisma.SortOrder
   amount?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -277,7 +277,7 @@ export type TransactionScalarWhereWithAggregatesInput = {
   OR?: Prisma.TransactionScalarWhereWithAggregatesInput[]
   NOT?: Prisma.TransactionScalarWhereWithAggregatesInput | Prisma.TransactionScalarWhereWithAggregatesInput[]
   transactionId?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
-  orderId?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
+  orderId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   customerId?: Prisma.StringNullableWithAggregatesFilter<"Transaction"> | string | null
   amount?: Prisma.FloatWithAggregatesFilter<"Transaction"> | number
   status?: Prisma.StringWithAggregatesFilter<"Transaction"> | string
@@ -287,7 +287,7 @@ export type TransactionScalarWhereWithAggregatesInput = {
 
 export type TransactionCreateInput = {
   transactionId?: string
-  orderId: string
+  orderId?: string | null
   customerId?: string | null
   amount: number
   status?: string
@@ -297,7 +297,7 @@ export type TransactionCreateInput = {
 
 export type TransactionUncheckedCreateInput = {
   transactionId?: string
-  orderId: string
+  orderId?: string | null
   customerId?: string | null
   amount: number
   status?: string
@@ -307,7 +307,7 @@ export type TransactionUncheckedCreateInput = {
 
 export type TransactionUpdateInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
@@ -317,7 +317,7 @@ export type TransactionUpdateInput = {
 
 export type TransactionUncheckedUpdateInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
@@ -327,7 +327,7 @@ export type TransactionUncheckedUpdateInput = {
 
 export type TransactionCreateManyInput = {
   transactionId?: string
-  orderId: string
+  orderId?: string | null
   customerId?: string | null
   amount: number
   status?: string
@@ -337,7 +337,7 @@ export type TransactionCreateManyInput = {
 
 export type TransactionUpdateManyMutationInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
@@ -347,7 +347,7 @@ export type TransactionUpdateManyMutationInput = {
 
 export type TransactionUncheckedUpdateManyInput = {
   transactionId?: Prisma.StringFieldUpdateOperationsInput | string
-  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   customerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   amount?: Prisma.FloatFieldUpdateOperationsInput | number
   status?: Prisma.StringFieldUpdateOperationsInput | string
@@ -462,7 +462,7 @@ export type $TransactionPayload<ExtArgs extends runtime.Types.Extensions.Interna
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     transactionId: string
-    orderId: string
+    orderId: string | null
     customerId: string | null
     amount: number
     status: string

@@ -21,26 +21,43 @@ const Restaurants = () => {
     fetchRestaurants();
   }, []);
 
-  if (loading) return <div className="loading">Loading restaurants...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
   if (error) return <div className="error-message">{error}</div>;
 
   return (
     <div>
       <h2 className="page-heading">Restaurants</h2>
       {restaurants.length === 0 ? (
-        <p className="loading">No restaurants available.</p>
+        <div className="empty-state">
+          <div className="empty-icon">&#127860;</div>
+          <h3>No restaurants available</h3>
+          <p>Check back soon for new restaurants in your area.</p>
+        </div>
       ) : (
-        <ul className="list">
+        <div className="restaurant-grid">
           {restaurants.map((r) => (
-            <li key={r.id} className="list-item">
-              <div>
-                <h3><Link to={`/restaurants/${r.id}`}>{r.name}</Link></h3>
-                <p>{r.cuisine || 'Various'}{r.address ? ` — ${r.address}` : ''}</p>
+            <div key={r.id} className="restaurant-card">
+              <h3><Link to={`/restaurants/${r.id}`}>{r.name}</Link></h3>
+              <div className="card-meta">
+                {r.cuisine && <span className="cuisine-badge">{r.cuisine}</span>}
+                {r.available !== undefined && (
+                  <span className={`availability-badge ${r.available ? 'open' : 'closed'}`}>
+                    {r.available ? '\u25CF Open' : '\u25CB Closed'}
+                  </span>
+                )}
               </div>
-              <Link to={`/order?restaurantId=${r.id}`} className="btn btn-secondary">Order</Link>
-            </li>
+              {r.address && <div className="card-address">{r.address}</div>}
+              <div className="card-actions">
+                <Link to={`/restaurants/${r.id}`} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                  Menu
+                </Link>
+                <Link to={`/order?restaurantId=${r.id}`} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                  Order
+                </Link>
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

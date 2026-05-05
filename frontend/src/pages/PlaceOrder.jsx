@@ -14,11 +14,9 @@ const PlaceOrder = () => {
   const [menu, setMenu] = useState([]);
   const [quantities, setQuantities] = useState({});
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [loading, setLoading] = useState(false);
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     const fetchRestaurants = async () => {
@@ -50,7 +48,7 @@ const PlaceOrder = () => {
 
   const totalAmount = menu.reduce(
     (sum, item) => sum + (quantities[item.id] || 0) * Number(item.price),
-    0
+    0,
   );
 
   const handleQuantityChange = (itemId, value) => {
@@ -58,20 +56,20 @@ const PlaceOrder = () => {
     setQuantities((prev) => ({ ...prev, [itemId]: qty }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
 
-    const items = menu
+    const selectedItems = menu
       .filter((item) => (quantities[item.id] || 0) > 0)
       .map((item) => ({
         itemId: item.id,
-        quantity: quantities[item.id],
+        name: item.name,
         price: Number(item.price),
+        quantity: quantities[item.id],
       }));
 
-    if (items.length === 0) {
+    if (selectedItems.length === 0) {
       setError('Please select at least one item.');
       return;
     }
@@ -81,34 +79,27 @@ const PlaceOrder = () => {
       return;
     }
 
-    setLoading(true);
-    const { data, error: err } = await api.post('/orders', {
-      customerId: user.id,
-      restaurantId,
-      items,
-      deliveryAddress: deliveryAddress.trim(),
+    const restaurantName = restaurants.find((r) => r.id === restaurantId)?.name || 'Unknown';
+    navigate('/checkout', {
+      state: {
+        restaurantId,
+        restaurantName,
+        items: selectedItems,
+        deliveryAddress: deliveryAddress.trim(),
+        totalAmount,
+      },
     });
-    setLoading(false);
-
-    if (err) {
-      setError(err.message);
-      return;
-    }
-
-    setSuccess(`Order placed! Order ID: ${data.id}`);
-    setTimeout(() => navigate(`/order/${data.id}`), 1500);
   };
 
-  if (loadingRestaurants) return <div className="loading">Loading...</div>;
+  if (loadingRestaurants) return <div className="loading"><div className="spinner" /></div>;
 
   return (
     <div>
       <h2 className="page-heading">Place Order</h2>
 
       {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
 
-      <form onSubmit={handleSubmit} className="form-card" style={{ maxWidth: 'none' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 'none' }}>
         <div className="form-group">
           <label htmlFor="restaurant">Restaurant</label>
           <select id="restaurant" value={restaurantId} onChange={(e) => setRestaurantId(e.target.value)} required>
@@ -124,11 +115,16 @@ const PlaceOrder = () => {
             {loadingMenu ? (
               <div className="loading">Loading menu...</div>
             ) : (
-              <div className="order-items">
-                <h3 style={{ marginBottom: '0.75rem' }}>Items</h3>
+              <div className="order-items" style={{ marginTop: 'var(--space-lg)' }}>
+                <h3 className="section-heading">Menu Items</h3>
                 {menu.map((item) => (
                   <div key={item.id} className="order-item-row">
-                    <span>{item.name} — ${Number(item.price).toFixed(2)}</span>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontWeight: 500 }}>{item.name}</span>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', marginLeft: '0.5rem' }}>
+                        ${Number(item.price).toFixed(2)}
+                      </span>
+                    </div>
                     <input
                       type="number"
                       min="0"
@@ -141,7 +137,9 @@ const PlaceOrder = () => {
             )}
 
             {totalAmount > 0 && (
-              <div className="order-summary">Total: ${totalAmount.toFixed(2)}</div>
+              <div className="order-summary">
+                Total: ${totalAmount.toFixed(2)}
+              </div>
             )}
 
             <div className="form-group">
@@ -155,8 +153,8 @@ const PlaceOrder = () => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Placing order...' : 'Place Order'}
+            <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={!restaurantId || totalAmount === 0}>
+              Proceed to Checkout &mdash; ${totalAmount > 0 ? totalAmount.toFixed(2) : '0.00'}
             </button>
           </>
         )}

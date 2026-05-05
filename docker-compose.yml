@@ -1,0 +1,201 @@
+
+services:
+  # Databases 
+  user-service-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: user_service
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d user_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fooddelivery-network
+
+  restaurant-service-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: restaurant_service
+    volumes:
+      - restaurant-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d restaurant_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fooddelivery-network
+
+  order-service-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: order_service
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d order_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fooddelivery-network
+
+  payment-service-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: payment_service
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d payment_service"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fooddelivery-network
+
+  # Microservices
+  user-service:
+    image: fooddelivery/user-service:latest
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/user-service/.env
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS}
+    depends_on:
+      user-service-db:
+        condition: service_healthy
+    networks:
+      - fooddelivery-network
+
+  restaurant-service:
+    image: fooddelivery/restaurant-service:latest
+    build:
+      context: ./services/restaurant-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/restaurant-service/.env
+    depends_on:
+      restaurant-service-db:
+        condition: service_healthy
+    networks:
+      - fooddelivery-network
+
+  order-service:
+    image: fooddelivery/order-service:latest
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/order-service/.env
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_URL: ${USER_SERVICE_URL}
+      RESTAURANT_SERVICE_URL: ${RESTAURANT_SERVICE_URL}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL}
+    depends_on:
+      order-service-db:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      restaurant-service:
+        condition: service_healthy
+    networks:
+      - fooddelivery-network
+
+  payment-service:
+    image: fooddelivery/payment-service:latest
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./services/payment-service/.env
+    environment:
+      PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE}
+      PAYMENT_PROCESSING_DELAY_MS: ${PAYMENT_PROCESSING_DELAY_MS}
+    depends_on:
+      payment-service-db:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    networks:
+      - fooddelivery-network
+
+  # Frontend
+  frontend:
+    image: fooddelivery/frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - fooddelivery-network
+
+  # API Gateway (Nginx reverse proxy — the ONLY public entry point)
+  api-gateway:
+    image: fooddelivery/api-gateway:latest
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      user-service:
+        condition: service_healthy
+      restaurant-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - fooddelivery-network
+
+volumes:
+  user-db-data:
+  restaurant-db-data:
+  order-db-data:
+  payment-db-data:
+
+networks:
+  fooddelivery-network:
+    name: fooddelivery-network
+    driver: bridge

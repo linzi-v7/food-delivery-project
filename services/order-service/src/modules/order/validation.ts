@@ -11,11 +11,11 @@ export const createOrderSchema = z.object({
           .number()
           .int()
           .positive({ error: "Quantity must be a positive integer" }),
-        price: z.number().positive({ error: "Price must be positive" }),
       }),
     )
     .min(1, { error: "At least one item is required" }),
   deliveryAddress: z.string().min(1, { error: "Delivery address is required" }),
+  transactionId: z.string().optional(),
 });
 
 export const updateOrderStatusSchema = z.object({

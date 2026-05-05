@@ -5,6 +5,7 @@ import Register from './pages/Register.jsx';
 import Restaurants from './pages/Restaurants.jsx';
 import RestaurantDetail from './pages/RestaurantDetail.jsx';
 import PlaceOrder from './pages/PlaceOrder.jsx';
+import Checkout from './pages/Checkout.jsx';
 import Orders from './pages/Orders.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
 
@@ -48,6 +49,7 @@ const App = () => (
       <Route path="/restaurants" element={<Restaurants />} />
       <Route path="/restaurants/:id" element={<RestaurantDetail />} />
       <Route path="/order" element={<ProtectedRoute><PlaceOrder /></ProtectedRoute>} />
+      <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
       <Route path="/order/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/restaurants" replace />} />

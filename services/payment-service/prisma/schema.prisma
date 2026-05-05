@@ -9,7 +9,7 @@ datasource db {
 
 model Transaction {
   transactionId String   @id @default(uuid()) @map("transaction_id")
-  orderId       String   @map("order_id")
+  orderId       String?  @map("order_id")
   customerId    String?  @map("customer_id")
   amount        Float    @map("amount")
   status        String   @default("pending") @map("status")

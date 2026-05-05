@@ -76,6 +76,7 @@ export const RestaurantScalarFieldEnum = {
   name: 'name',
   address: 'address',
   cuisine: 'cuisine',
+  available: 'available',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -26,25 +26,32 @@ const Orders = () => {
     fetchOrders();
   }, [user?.id]);
 
-  if (loading) return <div className="loading">Loading orders...</div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
   if (error) return <div className="error-message">{error}</div>;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div className="page-actions">
         <h2 className="page-heading" style={{ marginBottom: 0 }}>My Orders</h2>
-        <Link to="/order" className="btn btn-primary" style={{ width: 'auto' }}>New Order</Link>
+        <Link to="/order" className="btn btn-primary">New Order</Link>
       </div>
 
       {orders.length === 0 ? (
-        <p className="loading">You haven&apos;t placed any orders yet.</p>
+        <div className="empty-state">
+          <div className="empty-icon">&#128230;</div>
+          <h3>No orders yet</h3>
+          <p>Browse restaurants and place your first order.</p>
+          <Link to="/restaurants" className="btn btn-primary">Browse Restaurants</Link>
+        </div>
       ) : (
         <ul className="list">
           {orders.map((order) => (
             <li key={order.id} className="list-item">
               <div>
                 <h3>
-                  <Link to={`/order/${order.id}`}>Order #{order.id.slice(0, 8)}</Link>
+                  <Link to={`/order/${order.id}`}>
+                    {order.restaurantName ? `Order from ${order.restaurantName}` : `Order #${order.id.slice(0, 8)}`}
+                  </Link>
                 </h3>
                 <p>
                   ${Number(order.totalAmount).toFixed(2)} &bull; {order.items?.length || 0} item(s) &bull; {new Date(order.createdAt).toLocaleDateString()}

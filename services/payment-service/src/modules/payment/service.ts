@@ -5,76 +5,27 @@ import type { InitiatePaymentInput } from "./validation.js";
 
 export const createPaymentService = (
   prisma: PrismaClient,
-  orderServiceUrl: string | undefined,
   successRate: number,
   processingDelayMs: number,
 ) => {
   const logger = getLogger();
 
-  const notifyOrderService = async (
-    orderId: string,
-    status: "confirmed" | "cancelled",
-  ): Promise<void> => {
-    if (!orderServiceUrl) {
-      logger.debug({ orderId, status }, "ORDER_SERVICE_URL not set, skipping callback");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${orderServiceUrl}/orders/${orderId}/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-          signal: AbortSignal.timeout(5000),
-        },
-      );
-
-      if (!response.ok) {
-        logger.warn(
-          { orderId, status, responseStatus: response.status },
-          "Order service callback returned non-200 status",
-        );
-      } else {
-        logger.info(
-          { orderId, status },
-          "Order service notified successfully",
-        );
-      }
-    } catch (error) {
-      logger.warn(
-        { err: error, orderId, status },
-        "Order service callback failed (unreachable)",
-      );
-    }
-  };
-
-  const processPayment = async (transactionId: string): Promise<void> => {
+  const processAndFinalize = async (
+    transactionId: string,
+  ): Promise<"succeeded" | "failed"> => {
     const isSuccess = Math.random() < successRate;
-    const newStatus = isSuccess ? "succeeded" : "failed";
-    const orderStatus = isSuccess ? "confirmed" : "cancelled";
+    const status = isSuccess ? "succeeded" : "failed";
 
+    // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, processingDelayMs));
 
-    try {
-      const updated = await prisma.transaction.update({
-        where: { transactionId },
-        data: { status: newStatus },
-      });
+    await prisma.transaction.update({
+      where: { transactionId },
+      data: { status },
+    });
 
-      logger.info(
-        { transactionId, status: newStatus, orderId: updated.orderId },
-        "Payment processed",
-      );
-
-      void notifyOrderService(updated.orderId, orderStatus);
-    } catch (error) {
-      logger.error(
-        { err: error, transactionId },
-        "Failed to update transaction status",
-      );
-    }
+    logger.info({ transactionId, status }, "Payment processed");
+    return status;
   };
 
   const updateSuccessRateMetric = async (): Promise<void> => {
@@ -85,98 +36,17 @@ export const createPaymentService = (
           where: { status: { in: ["succeeded", "refunded"] } },
         }),
       ]);
-
-      if (total > 0) {
-        paymentSuccessRate.set(succeeded / total);
-      }
+      if (total > 0) paymentSuccessRate.set(succeeded / total);
     } catch {
       // silently ignore metric update failures
     }
   };
 
-  const validateOrder = async (
-    orderId: string,
-  ): Promise<{ valid: boolean; error?: { code: string; message: string } }> => {
-    if (!orderServiceUrl) {
-      logger.debug("ORDER_SERVICE_URL not set, skipping order validation");
-      return { valid: true };
-    }
-
-    const start = Date.now();
-    try {
-      const response = await fetch(`${orderServiceUrl}/orders/${orderId}`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      const durationMs = Date.now() - start;
-
-      logger.info(
-        { svc: "Order Service", status: response.status, ms: durationMs },
-        "Order validation call completed",
-      );
-
-      if (!response.ok) {
-        return {
-          valid: false,
-          error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
-        };
-      }
-
-      return { valid: true };
-    } catch (error: unknown) {
-      const durationMs = Date.now() - start;
-      const err = error instanceof Error ? error : new Error(String(error));
-      const isTimeout = err.name === "AbortError";
-
-      logger.warn(
-        { svc: "Order Service", ms: durationMs, timeout: isTimeout, err: err.message },
-        "Order validation call failed",
-      );
-
-      return {
-        valid: false,
-        error: { code: "SERVICE_UNAVAILABLE", message: "Order Service unavailable" },
-      };
-    }
-  };
-
   const initiatePayment = async (input: InitiatePaymentInput) => {
-    // 1. Validate order exists
-    const orderCheck = await validateOrder(input.orderId);
-
-    if (!orderCheck.valid) {
-      if (orderCheck.error?.code === "SERVICE_UNAVAILABLE") {
-        return {
-          success: false as const,
-          status: 503,
-          error: { code: "SERVICE_UNAVAILABLE", message: "Order Service unavailable" },
-        };
-      }
-      return {
-        success: false as const,
-        status: 400,
-        error: { code: "ORDER_NOT_FOUND", message: "Order not found" },
-      };
-    }
-
-    // 2. Prevent double charging — check for existing succeeded transaction
-    const existingSucceeded = await prisma.transaction.findFirst({
-      where: { orderId: input.orderId, status: "succeeded" },
-    });
-
-    if (existingSucceeded) {
-      return {
-        success: false as const,
-        status: 409,
-        error: {
-          code: "ALREADY_PAID",
-          message: "Payment has already been processed for this order",
-        },
-      };
-    }
-
+    // Create transaction as pending
     const transaction = await prisma.transaction.create({
       data: {
-        orderId: input.orderId,
+        orderId: input.orderId ?? null,
         customerId: input.customerId ?? null,
         amount: input.amount,
         status: "pending",
@@ -184,22 +54,22 @@ export const createPaymentService = (
     });
 
     logger.info(
-      { transactionId: transaction.transactionId, orderId: input.orderId },
+      { transactionId: transaction.transactionId, amount: input.amount },
       "Payment initiated",
     );
 
-    // Fire-and-forget async processing
-    void processPayment(transaction.transactionId);
+    // Process synchronously — caller waits for the result
+    const finalStatus = await processAndFinalize(transaction.transactionId);
 
     return {
       success: true as const,
-      status: 201,
+      status: finalStatus === "succeeded" ? 201 : 402,
       data: {
         transactionId: transaction.transactionId,
         orderId: transaction.orderId,
         customerId: transaction.customerId,
         amount: transaction.amount,
-        status: transaction.status,
+        status: finalStatus,
         createdAt: transaction.createdAt,
       },
     };
@@ -214,10 +84,7 @@ export const createPaymentService = (
       return {
         success: false as const,
         status: 404,
-        error: {
-          code: "TRANSACTION_NOT_FOUND",
-          message: "Transaction not found.",
-        },
+        error: { code: "TRANSACTION_NOT_FOUND", message: "Transaction not found." },
       };
     }
 
@@ -246,10 +113,7 @@ export const createPaymentService = (
       return {
         success: false as const,
         status: 404,
-        error: {
-          code: "PAYMENT_NOT_FOUND",
-          message: "No payment record found for this order.",
-        },
+        error: { code: "PAYMENT_NOT_FOUND", message: "No payment record found for this order." },
       };
     }
 
@@ -277,10 +141,7 @@ export const createPaymentService = (
       return {
         success: false as const,
         status: 404,
-        error: {
-          code: "TRANSACTION_NOT_FOUND",
-          message: "Transaction not found.",
-        },
+        error: { code: "TRANSACTION_NOT_FOUND", message: "Transaction not found." },
       };
     }
 

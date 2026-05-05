@@ -75,6 +75,7 @@ export const OrderScalarFieldEnum = {
   id: 'id',
   customerId: 'customerId',
   restaurantId: 'restaurantId',
+  restaurantName: 'restaurantName',
   items: 'items',
   totalAmount: 'totalAmount',
   deliveryAddress: 'deliveryAddress',
