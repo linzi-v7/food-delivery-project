@@ -1,0 +1,141 @@
+
+# =============================================================================
+# Development Override — Source mounts, hot reload, all ports exposed.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+#                  --env-file .env.dev -p fooddelivery-dev up --build
+#
+#   Or:  make dev
+# =============================================================================
+
+services:
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Databases — no persistent volume, ports exposed for direct access
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service-db:
+    volumes: []
+    ports:
+      - "5433:5432"
+
+  restaurant-service-db:
+    volumes: []
+    ports:
+      - "5434:5432"
+
+  order-service-db:
+    volumes: []
+    ports:
+      - "5435:5432"
+
+  payment-service-db:
+    volumes: []
+    ports:
+      - "5436:5432"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Microservices — source mounts + hot reload via tsx watch
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service:
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./services/user-service/src:/app/src
+      - ./services/user-service/prisma:/app/prisma
+      - ./services/user-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/user-service/tsconfig.json:/app/tsconfig.json
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user-service-db:5432/user_service"
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+  restaurant-service:
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./services/restaurant-service/src:/app/src
+      - ./services/restaurant-service/prisma:/app/prisma
+      - ./services/restaurant-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/restaurant-service/tsconfig.json:/app/tsconfig.json
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@restaurant-service-db:5432/restaurant_service"
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+  order-service:
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./services/order-service/src:/app/src
+      - ./services/order-service/prisma:/app/prisma
+      - ./services/order-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/order-service/tsconfig.json:/app/tsconfig.json
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-service-db:5432/order_service"
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+  payment-service:
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./services/payment-service/src:/app/src
+      - ./services/payment-service/prisma:/app/prisma
+      - ./services/payment-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/payment-service/tsconfig.json:/app/tsconfig.json
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-service-db:5432/payment_service"
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Frontend — Dockerfile.dev builds a Node image for Vite dev server
+  # ═════════════════════════════════════════════════════════════════════
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: ${VITE_API_URL}
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+  # ═════════════════════════════════════════════════════════════════════
+  # API Gateway — exposed on port 8080
+  # ═════════════════════════════════════════════════════════════════════
+
+  api-gateway:
+    ports:
+      - "8080:80"
+
+# ═════════════════════════════════════════════════════════════════════
+# Network — isolated dev network so all 3 envs run simultaneously
+# ═════════════════════════════════════════════════════════════════════
+
+networks:
+  fooddelivery-network:
+    name: fooddelivery-dev

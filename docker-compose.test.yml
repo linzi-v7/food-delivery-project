@@ -1,0 +1,142 @@
+
+# =============================================================================
+# Testing Override — Ephemeral data, structured logging, seed containers.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml \
+#                  --env-file .env.test -p fooddelivery-test up --build
+#
+#   Or:  make test
+# =============================================================================
+
+services:
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Databases — no persistent volume, no ports exposed
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service-db:
+    volumes: []
+
+  restaurant-service-db:
+    volumes: []
+
+  order-service-db:
+    volumes: []
+
+  payment-service-db:
+    volumes: []
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Microservices — structured JSON logging, test mode
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service:
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user-service-db:5432/user_service"
+
+  restaurant-service:
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@restaurant-service-db:5432/restaurant_service"
+
+  order-service:
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-service-db:5432/order_service"
+
+  payment-service:
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-service-db:5432/payment_service"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Frontend — test mode
+  # ═════════════════════════════════════════════════════════════════════
+
+  frontend:
+    environment:
+      NODE_ENV: test
+
+  # ═════════════════════════════════════════════════════════════════════
+  # API Gateway — exposed on port 9080
+  # ═════════════════════════════════════════════════════════════════════
+
+  api-gateway:
+    ports:
+      - "9080:80"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Database Seed Containers — run once, insert test data, then exit
+  # ═════════════════════════════════════════════════════════════════════
+
+  seed-user-db:
+    image: postgres:16-alpine
+    depends_on:
+      user-service:
+        condition: service_healthy
+    volumes:
+      - ./scripts/seed/seed-user-db.sql:/seed.sql:ro
+    environment:
+      PGHOST: user-service-db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: user_service
+    command:
+      - sh
+      - -c
+      - |
+        echo "==> Waiting for user-service-db to be ready..."
+        until pg_isready -h user-service-db -U "$${PGUSER}" -d user_service; do
+          sleep 2
+        done
+        echo "==> Seeding user-service-db..."
+        psql -h user-service-db -U "$${PGUSER}" -d user_service -f /seed.sql
+        echo "==> Seed complete."
+    restart: "no"
+    networks:
+      - fooddelivery-network
+
+  seed-restaurant-db:
+    image: postgres:16-alpine
+    depends_on:
+      restaurant-service:
+        condition: service_healthy
+    volumes:
+      - ./scripts/seed/seed-restaurant-db.sql:/seed.sql:ro
+    environment:
+      PGHOST: restaurant-service-db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: restaurant_service
+    command:
+      - sh
+      - -c
+      - |
+        echo "==> Waiting for restaurant-service-db to be ready..."
+        until pg_isready -h restaurant-service-db -U "$${PGUSER}" -d restaurant_service; do
+          sleep 2
+        done
+        echo "==> Seeding restaurant-service-db..."
+        psql -h restaurant-service-db -U "$${PGUSER}" -d restaurant_service -f /seed.sql
+        echo "==> Seed complete."
+    restart: "no"
+    networks:
+      - fooddelivery-network
+
+# ═════════════════════════════════════════════════════════════════════
+# Network — isolated test network so all 3 envs run simultaneously
+# ═════════════════════════════════════════════════════════════════════
+
+networks:
+  fooddelivery-network:
+    name: fooddelivery-test

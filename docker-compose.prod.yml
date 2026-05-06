@@ -1,0 +1,162 @@
+
+# =============================================================================
+# Production Override — Persistent volumes, replicas, resource limits.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#                  --env-file .env.prod -p fooddelivery-prod up -d --build
+#
+#   Or:  make prod
+#
+# NOTE: deploy.replicas requires Docker Swarm mode (`docker stack deploy`).
+#       For non-swarm, the Makefile uses --scale flags instead.
+#       deploy.resources.limits work natively in Docker Compose v2.17+.
+# =============================================================================
+
+services:
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Databases — named persistent volumes, resource limits, no ports
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service-db:
+    volumes:
+      - user-db-data-prod:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1g"
+
+  restaurant-service-db:
+    volumes:
+      - restaurant-db-data-prod:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1g"
+
+  order-service-db:
+    volumes:
+      - order-db-data-prod:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1g"
+
+  payment-service-db:
+    volumes:
+      - payment-db-data-prod:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1g"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Microservices — 2 replicas, resource limits, minimal logging
+  # ═════════════════════════════════════════════════════════════════════
+
+  user-service:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user-service-db:5432/user_service"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+  restaurant-service:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@restaurant-service-db:5432/restaurant_service"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+  order-service:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-service-db:5432/order_service"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+  payment-service:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      LOG_FORMAT: json
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-service-db:5432/payment_service"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # Frontend — production mode, 2 replicas
+  # ═════════════════════════════════════════════════════════════════════
+
+  frontend:
+    environment:
+      NODE_ENV: production
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+  # ═════════════════════════════════════════════════════════════════════
+  # API Gateway — exposed on port 80, 2 replicas
+  # ═════════════════════════════════════════════════════════════════════
+
+  api-gateway:
+    ports:
+      - "80:80"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512m"
+
+# ═════════════════════════════════════════════════════════════════════
+# Volumes — named persistent volumes separate from dev volumes
+# ═════════════════════════════════════════════════════════════════════
+
+volumes:
+  user-db-data-prod:
+    name: user-db-data-prod
+  restaurant-db-data-prod:
+    name: restaurant-db-data-prod
+  order-db-data-prod:
+    name: order-db-data-prod
+  payment-db-data-prod:
+    name: payment-db-data-prod
+
+# ═════════════════════════════════════════════════════════════════════
+# Network — isolated prod network so all 3 envs run simultaneously
+# ═════════════════════════════════════════════════════════════════════
+
+networks:
+  fooddelivery-network:
+    name: fooddelivery-prod
