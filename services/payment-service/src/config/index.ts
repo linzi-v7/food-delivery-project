@@ -6,7 +6,6 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().positive().default(3004),
   DATABASE_URL: z.string().url(),
-  ORDER_SERVICE_URL: z.string().url().optional(),
   PAYMENT_SUCCESS_RATE: z.coerce.number().min(0).max(1).default(0.9),
   PAYMENT_PROCESSING_DELAY_MS: z.coerce.number().int().positive().default(2000),
   CORS_ORIGIN: z.string().default("*"),

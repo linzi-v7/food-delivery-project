@@ -1,0 +1,17 @@
+---
+# Restaurant Service — ClusterIP Service
+# Exposes port 3002 internally within the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: restaurant-service
+  namespace: prod
+  labels:
+    app: restaurant-service
+spec:
+  type: ClusterIP
+  selector:
+    app: restaurant-service
+  ports:
+    - port: 3002
+      targetPort: 3002

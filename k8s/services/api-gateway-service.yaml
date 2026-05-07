@@ -1,0 +1,17 @@
+---
+# API Gateway Service — ClusterIP
+# Exposes port 80 internally within the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: prod
+  labels:
+    app: api-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: api-gateway
+  ports:
+    - port: 80
+      targetPort: 80
