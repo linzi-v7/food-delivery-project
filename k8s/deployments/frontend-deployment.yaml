@@ -35,3 +35,9 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
             initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 30

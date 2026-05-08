@@ -15,7 +15,7 @@
 #   make all-down   Tear down all 3 stacks
 # =============================================================================
 
-.PHONY: dev dev-down test test-down prod prod-down all all-down
+.PHONY: dev dev-down test test-down prod prod-down all all-down k8s-deploy k8s-teardown k8s-status k8s-logs
 
 COMPOSE_BASE  := -f docker-compose.yml
 
@@ -63,3 +63,25 @@ all: dev test prod
 
 all-down: dev-down test-down prod-down
 	@echo "==> All 3 environments are down."
+
+# ═════════════════════════════════════════════════════════════════════
+# Kubernetes
+# ═════════════════════════════════════════════════════════════════════
+k8s-deploy:
+	@echo "==> Deploying to Kubernetes (Minikube)..."
+	bash k8s/deploy.sh
+
+k8s-teardown:
+	@echo "==> Tearing down Kubernetes resources..."
+	bash k8s/teardown.sh
+
+k8s-status:
+	kubectl get pods -n prod
+
+k8s-logs:
+	@echo "==> Pods in prod namespace:"
+	kubectl get pods -n prod
+	@echo ""
+	@echo "==> To view logs for a specific pod, run:"
+	@echo "    kubectl logs -n prod <pod-name>"
+	@echo "    kubectl logs -n prod <pod-name> -f     (follow)"
