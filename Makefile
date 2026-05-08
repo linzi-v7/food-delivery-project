@@ -15,7 +15,7 @@
 #   make all-down   Tear down all 3 stacks
 # =============================================================================
 
-.PHONY: dev dev-down test test-down prod prod-down all all-down k8s-deploy k8s-teardown k8s-status k8s-logs
+.PHONY: dev dev-down test test-down prod prod-down all all-down k8s-deploy k8s-teardown k8s-status k8s-logs k8s-prereqs k8s-build-images k8s-load-images k8s-rebuild
 
 COMPOSE_BASE  := -f docker-compose.yml
 
@@ -67,9 +67,75 @@ all-down: dev-down test-down prod-down
 # ═════════════════════════════════════════════════════════════════════
 # Kubernetes
 # ═════════════════════════════════════════════════════════════════════
-k8s-deploy:
+#
+# Workflow:
+#   1. make k8s-prereqs          (one-time: verify minikube, enable addons)
+#   2. make k8s-deploy           (build images → load into minikube → deploy)
+#   3. make k8s-rebuild <svc>    (rebuild a single service, e.g. make k8s-rebuild frontend)
+#
+# ═════════════════════════════════════════════════════════════════════
+
+K8S_IMAGES := user-service restaurant-service order-service payment-service frontend api-gateway
+
+k8s-prereqs:
+	@echo "==> Checking prerequisites..."
+	@minikube status 2>/dev/null || { \
+		echo "  ERROR: Minikube is not running."; \
+		echo "  Start it with: minikube start"; \
+		exit 1; \
+	}
+	@echo "  Minikube is running."
+	@minikube addons enable ingress 2>/dev/null || true
+	@echo "==> Prerequisites OK."
+
+k8s-build-images:
+	@echo "==> Building Docker images..."
+	@docker build -t fooddelivery/user-service:latest     services/user-service
+	@docker build -t fooddelivery/restaurant-service:latest services/restaurant-service
+	@docker build -t fooddelivery/order-service:latest    services/order-service
+	@docker build -t fooddelivery/payment-service:latest  services/payment-service
+	@docker build -t fooddelivery/frontend:latest         frontend
+	@docker build -t fooddelivery/api-gateway:latest      gateway
+	@echo "==> All images built."
+
+k8s-load-images:
+	@echo "==> Loading images into Minikube..."
+	@for img in $(K8S_IMAGES); do \
+		echo "  Loading fooddelivery/$$img:latest"; \
+		minikube image load "fooddelivery/$$img:latest"; \
+	done
+	@echo "==> All images loaded."
+
+k8s-deploy: k8s-prereqs k8s-build-images k8s-load-images
 	@echo "==> Deploying to Kubernetes (Minikube)..."
 	bash k8s/deploy.sh
+
+k8s-rebuild:
+	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		echo "Usage: make k8s-rebuild <service>"; \
+		echo "  e.g. make k8s-rebuild frontend"; \
+		echo "  Services: $(K8S_IMAGES)"; \
+		exit 1; \
+	fi
+	@SVC="$(filter-out $@,$(MAKECMDGOALS))"; \
+	CTX="$$SVC"; \
+	case "$$SVC" in \
+		user-service)       CTX="services/user-service" ;; \
+		restaurant-service) CTX="services/restaurant-service" ;; \
+		order-service)      CTX="services/order-service" ;; \
+		payment-service)    CTX="services/payment-service" ;; \
+		frontend)           CTX="frontend" ;; \
+		api-gateway)        CTX="gateway" ;; \
+		*) echo "Unknown service: $$SVC"; echo "Known: $(K8S_IMAGES)"; exit 1 ;; \
+	esac; \
+	echo "==> Rebuilding fooddelivery/$$SVC:latest from ./$$CTX"; \
+	docker build -t "fooddelivery/$$SVC:latest" "$$CTX" && \
+	echo "  Reloading into Minikube..." && \
+	minikube image load "fooddelivery/$$SVC:latest" && \
+	echo "  Restarting deployment..." && \
+	kubectl rollout restart "deployment/$$SVC" -n prod && \
+	kubectl rollout status "deployment/$$SVC" -n prod --timeout=120s && \
+	echo "==> $$SVC rebuilt and deployed."
 
 k8s-teardown:
 	@echo "==> Tearing down Kubernetes resources..."
