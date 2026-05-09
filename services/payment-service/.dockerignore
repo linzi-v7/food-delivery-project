@@ -41,6 +41,9 @@ CONTRIBUTING.md
 LICENSE
 
 # Docker
-Dockerfile
+Dockerfile*
 .dockerignore
 docker-compose*.yml
+
+# Markdown documentation
+*.md

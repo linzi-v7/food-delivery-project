@@ -4,7 +4,7 @@ FROM nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy our gateway configuration as the main nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY --chown=appuser:appgroup nginx.conf /etc/nginx/nginx.conf
 
 # Run as non-root user for security
 RUN addgroup -g 1001 appgroup && \

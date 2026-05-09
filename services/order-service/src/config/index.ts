@@ -13,7 +13,7 @@ const envSchema = z.object({
   USER_SERVICE_URL: z.string().url(),
   RESTAURANT_SERVICE_URL: z.string().url(),
   PAYMENT_SERVICE_URL: z.string().url().optional(),
-  JWT_SECRET: z.string().optional(),
+  JWT_SECRET: z.string().min(32),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

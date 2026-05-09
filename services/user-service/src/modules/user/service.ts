@@ -147,6 +147,26 @@ export const createUserService = (
     };
   };
 
+  const listUsers = async () => {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return {
+      success: true as const,
+      status: 200,
+      data: users,
+    };
+  };
+
   const updateProfile = async (
     userId: string,
     requesterId: string,
@@ -206,7 +226,7 @@ export const createUserService = (
     };
   };
 
-  return { register, login, getProfile, updateProfile };
+  return { register, login, getProfile, listUsers, updateProfile };
 };
 
 export type UserService = ReturnType<typeof createUserService>;

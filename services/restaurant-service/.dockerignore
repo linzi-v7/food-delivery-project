@@ -41,9 +41,12 @@ CONTRIBUTING.md
 LICENSE
 
 # Docker
-Dockerfile
+Dockerfile*
 .dockerignore
 docker-compose*.yml
 
 # Generated Prisma client (regenerated during build)
 src/generated/
+
+# Markdown documentation
+*.md

@@ -14,5 +14,6 @@ data:
   DB_HOST: "user-db-service"
   DB_PORT: "5432"
   DB_NAME: "user_service"
+  DATABASE_URL: "postgresql://user_service_user:CHANGE_ME_user_db_password_123@user-db-service:5432/user_service"
   JWT_EXPIRES_IN: "1h"
   BCRYPT_SALT_ROUNDS: "10"

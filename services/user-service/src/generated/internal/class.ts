@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.8.0",
   "engineVersion": "3c6e192761c0362d496ed980de936e2f3cebcd3a",
   "activeProvider": "postgresql",
-  "inlineSchema": "generator client {\n  provider = \"prisma-client\"\n  output   = \"../src/generated\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum UserRole {\n  CUSTOMER\n  DELIVERY_PERSONNEL\n}\n\nmodel User {\n  id           String   @id @default(uuid())\n  name         String\n  email        String   @unique\n  passwordHash String   @map(\"password_hash\")\n  role         UserRole\n  createdAt    DateTime @default(now()) @map(\"created_at\")\n  updatedAt    DateTime @updatedAt @map(\"updated_at\")\n\n  @@map(\"users\")\n}\n",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../src/generated\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum UserRole {\n  CUSTOMER\n  DELIVERY_PERSONNEL\n  ADMIN\n}\n\nmodel User {\n  id           String   @id @default(uuid())\n  name         String\n  email        String   @unique\n  passwordHash String   @map(\"password_hash\")\n  role         UserRole\n  createdAt    DateTime @default(now()) @map(\"created_at\")\n  updatedAt    DateTime @updatedAt @map(\"updated_at\")\n\n  @@map(\"users\")\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},

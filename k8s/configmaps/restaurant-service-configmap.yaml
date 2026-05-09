@@ -14,3 +14,4 @@ data:
   DB_HOST: "restaurant-db-service"
   DB_PORT: "5432"
   DB_NAME: "restaurant_service"
+  DATABASE_URL: "postgresql://restaurant_service_user:CHANGE_ME_restaurant_db_password_456@restaurant-db-service:5432/restaurant_service"

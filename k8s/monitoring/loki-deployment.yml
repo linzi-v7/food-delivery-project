@@ -16,6 +16,9 @@ spec:
       labels:
         app: loki
     spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
       containers:
         - name: loki
           image: grafana/loki:latest
@@ -38,6 +41,8 @@ spec:
               readOnly: true
             - name: data
               mountPath: /loki
+            - name: var-loki
+              mountPath: /var/loki
       volumes:
         - name: config
           configMap:
@@ -45,3 +50,5 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: loki-pvc
+        - name: var-loki
+          emptyDir: {}

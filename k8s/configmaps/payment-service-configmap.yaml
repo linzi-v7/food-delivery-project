@@ -14,5 +14,6 @@ data:
   DB_HOST: "payment-db-service"
   DB_PORT: "5432"
   DB_NAME: "payment_service"
+  DATABASE_URL: "postgresql://payment_service_user:CHANGE_ME_payment_db_password_012@payment-db-service:5432/payment_service"
   PAYMENT_SUCCESS_RATE: "0.9"
   PAYMENT_PROCESSING_DELAY_MS: "2000"

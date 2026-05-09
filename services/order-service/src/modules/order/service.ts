@@ -35,15 +35,11 @@ export const createOrderService = (
   userServiceUrl: string,
   restaurantServiceUrl: string,
   paymentServiceUrl: string | undefined,
-  jwtSecret: string | undefined,
+  jwtSecret: string,
 ) => {
   const logger = getLogger();
 
   const generateServiceToken = (): string => {
-    if (!jwtSecret) {
-      logger.warn("JWT_SECRET not set, User Service calls will be unauthenticated");
-      return "";
-    }
     return jwt.sign(
       { sub: "order-service", email: "internal@food-delivery.local", role: "admin" },
       jwtSecret,
@@ -134,9 +130,7 @@ export const createOrderService = (
     const userResult = await callService(
       `${userServiceUrl}/users/${input.customerId}`,
       "User Service",
-      authToken
-        ? { headers: { Authorization: `Bearer ${authToken}` } }
-        : undefined,
+      { headers: { Authorization: `Bearer ${authToken}` } },
     );
 
     if (!userResult.success) {
@@ -339,6 +333,15 @@ export const createOrderService = (
     return { success: true as const, status: 200, data: orders };
   };
 
+  const listAllOrders = async () => {
+    const orders = await prisma.order.findMany({
+      include: { statusHistory: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true as const, status: 200, data: orders };
+  };
+
   const updateOrderStatus = async (
     id: string,
     input: UpdateOrderStatusInput,
@@ -393,6 +396,7 @@ export const createOrderService = (
     getOrder,
     listCustomerOrders,
     listRestaurantOrders,
+    listAllOrders,
     updateOrderStatus,
   };
 };

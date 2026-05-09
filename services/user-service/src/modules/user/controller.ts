@@ -68,6 +68,11 @@ export const createUserController = (userService: UserService) => {
     );
   };
 
+  const listUsers = async (_req: Request, res: Response): Promise<void> => {
+    const outcome = await userService.listUsers();
+    res.status(outcome.status).json({ data: outcome.data });
+  };
+
   const updateProfile = async (req: Request, res: Response): Promise<void> => {
     const id = req.params.id as string;
     const result = updateProfileSchema.safeParse(req.body);
@@ -101,5 +106,5 @@ export const createUserController = (userService: UserService) => {
     );
   };
 
-  return { register, login, getProfile, updateProfile };
+  return { register, login, getProfile, listUsers, updateProfile };
 };

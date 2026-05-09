@@ -6,6 +6,7 @@ const envSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().int().positive().default(3002),
   DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
   CORS_ORIGIN: z.string().default("*"),
   LOG_LEVEL: z
     .enum(["trace", "debug", "info", "warn", "error", "fatal"])

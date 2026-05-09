@@ -59,6 +59,14 @@ export const createOrderController = (orderService: OrderService) => {
     res.status(outcome.status).json({ data: outcome.data });
   };
 
+  const listAllOrders = async (
+    _req: Request,
+    res: Response
+  ): Promise<void> => {
+    const outcome = await orderService.listAllOrders();
+    res.status(outcome.status).json({ data: outcome.data });
+  };
+
   const updateOrderStatus = async (
     req: Request,
     res: Response
@@ -93,6 +101,7 @@ export const createOrderController = (orderService: OrderService) => {
     getOrder,
     listCustomerOrders,
     listRestaurantOrders,
+    listAllOrders,
     updateOrderStatus,
   };
 };

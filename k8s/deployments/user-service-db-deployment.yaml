@@ -39,8 +39,8 @@ spec:
               memory: "256Mi"
               cpu: "250m"
             limits:
-              memory: "1Gi"
-              cpu: "1"
+              memory: "256Mi"
+              cpu: "250m"
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
@@ -62,8 +62,10 @@ spec:
                 - $(POSTGRES_USER)
                 - -d
                 - $(POSTGRES_DB)
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 5
+            timeoutSeconds: 10
       volumes:
         - name: postgres-data
           persistentVolumeClaim:

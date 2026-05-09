@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { RestaurantService } from "./service.js";
 import { createRestaurantController } from "./controller.js";
+import { authenticate, authorize } from "../../middleware/auth.js";
 
 export const createRestaurantRoutes = (
   restaurantService: RestaurantService
@@ -8,10 +9,20 @@ export const createRestaurantRoutes = (
   const router = Router();
   const controller = createRestaurantController(restaurantService);
 
-  router.post("/restaurants", controller.createRestaurant);
   router.get("/restaurants", controller.listRestaurants);
   router.get("/restaurants/:id", controller.getRestaurant);
-  router.put("/restaurants/:id", controller.updateRestaurant);
+  router.post(
+    "/restaurants",
+    authenticate,
+    authorize("ADMIN"),
+    controller.createRestaurant,
+  );
+  router.put(
+    "/restaurants/:id",
+    authenticate,
+    authorize("ADMIN"),
+    controller.updateRestaurant,
+  );
 
   return router;
 };

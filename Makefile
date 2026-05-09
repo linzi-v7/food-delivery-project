@@ -94,7 +94,7 @@ k8s-build-images:
 	@docker build -t fooddelivery/restaurant-service:latest services/restaurant-service
 	@docker build -t fooddelivery/order-service:latest    services/order-service
 	@docker build -t fooddelivery/payment-service:latest  services/payment-service
-	@docker build -t fooddelivery/frontend:latest         frontend
+	@	docker build -t fooddelivery/frontend:latest --build-arg VITE_API_URL=/api frontend
 	@docker build -t fooddelivery/api-gateway:latest      gateway
 	@echo "==> All images built."
 
