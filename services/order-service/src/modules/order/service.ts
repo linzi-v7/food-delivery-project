@@ -1,9 +1,12 @@
-import { PrismaClient } from "../../generated/client.js";
+import { eq, desc } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import jwt from "jsonwebtoken";
 import type {
   CreateOrderInput,
   UpdateOrderStatusInput,
 } from "./validation.js";
+import * as schema from "../../db/schema.js";
+import { orders, orderStatusHistory } from "../../db/schema.js";
 
 type ServiceResult<T> =
   | { success: true; status: number; data: T }
@@ -30,7 +33,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 export const createOrderService = (
-  prisma: PrismaClient,
+  db: NodePgDatabase<typeof schema>,
   userServiceUrl: string,
   restaurantServiceUrl: string,
   paymentServiceUrl: string | undefined,
@@ -89,21 +92,23 @@ export const createOrderService = (
     newStatus: string,
     note?: string,
   ): Promise<void> => {
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    const order = await db.query.orders.findFirst({
+      where: (orders, { eq }) => eq(orders.id, orderId),
+    });
     if (!order) return;
     if (!VALID_TRANSITIONS[order.status]?.includes(newStatus)) return;
 
-    await prisma.$transaction([
-      prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: newStatus,
-          statusHistory: {
-            create: { status: newStatus, note: note ?? null },
-          },
-        },
-      }),
-    ]);
+    await db.transaction(async (tx) => {
+      await tx
+        .update(orders)
+        .set({ status: newStatus, updatedAt: new Date() })
+        .where(eq(orders.id, orderId));
+      await tx.insert(orderStatusHistory).values({
+        orderId,
+        status: newStatus,
+        note: note ?? null,
+      });
+    });
 
     logger.info({ orderId, from: order.status, to: newStatus }, "Order status auto-advanced");
   };
@@ -206,7 +211,6 @@ export const createOrderService = (
     }
 
     // Extract restaurant and menu items from response
-    // Restaurant Service returns: { data: { name, ..., menuItems: [...], available: boolean } }
     const restaurantBody = restaurantResult.data as {
       data?: { name?: string; available?: boolean; menuItems?: MenuItem[] };
     };
@@ -261,9 +265,10 @@ export const createOrderService = (
 
     // 8. Save order — confirmed if payment verified, pending otherwise
     const initialStatus = input.transactionId ? "confirmed" : "pending";
-    const [order] = await prisma.$transaction([
-      prisma.order.create({
-        data: {
+    const [order] = await db.transaction(async (tx) => {
+      const [newOrder] = await tx
+        .insert(orders)
+        .values({
           customerId: input.customerId,
           restaurantId: input.restaurantId,
           restaurantName,
@@ -271,13 +276,22 @@ export const createOrderService = (
           totalAmount,
           deliveryAddress: input.deliveryAddress,
           status: initialStatus,
-          statusHistory: {
-            create: { status: initialStatus, note: "Order created" },
-          },
-        },
-        include: { statusHistory: true },
-      }),
-    ]);
+        })
+        .returning();
+
+      await tx.insert(orderStatusHistory).values({
+        orderId: newOrder.id,
+        status: initialStatus,
+        note: "Order created",
+      });
+
+      const history = await tx.query.orderStatusHistory.findMany({
+        where: (h, { eq }) => eq(h.orderId, newOrder.id),
+        orderBy: (h, { asc }) => asc(h.createdAt),
+      });
+
+      return [{ ...newOrder, statusHistory: history }];
+    });
 
     logger.info({ orderId: order.id, status: initialStatus }, "Order created");
 
@@ -292,9 +306,9 @@ export const createOrderService = (
   const getOrder = async (
     id: string,
   ) => {
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: { statusHistory: true },
+    const order = await db.query.orders.findFirst({
+      where: (orders, { eq }) => eq(orders.id, id),
+      with: { statusHistory: true },
     });
 
     if (!order) {
@@ -311,41 +325,43 @@ export const createOrderService = (
   const listCustomerOrders = async (
     customerId: string,
   ) => {
-    const orders = await prisma.order.findMany({
-      where: { customerId },
-      include: { statusHistory: true },
-      orderBy: { createdAt: "desc" },
+    const ordersList = await db.query.orders.findMany({
+      where: (orders, { eq }) => eq(orders.customerId, customerId),
+      with: { statusHistory: true },
+      orderBy: (orders, { desc }) => desc(orders.createdAt),
     });
 
-    return { success: true as const, status: 200, data: orders };
+    return { success: true as const, status: 200, data: ordersList };
   };
 
   const listRestaurantOrders = async (
     restaurantId: string,
   ) => {
-    const orders = await prisma.order.findMany({
-      where: { restaurantId },
-      include: { statusHistory: true },
-      orderBy: { createdAt: "desc" },
+    const ordersList = await db.query.orders.findMany({
+      where: (orders, { eq }) => eq(orders.restaurantId, restaurantId),
+      with: { statusHistory: true },
+      orderBy: (orders, { desc }) => desc(orders.createdAt),
     });
 
-    return { success: true as const, status: 200, data: orders };
+    return { success: true as const, status: 200, data: ordersList };
   };
 
   const listAllOrders = async () => {
-    const orders = await prisma.order.findMany({
-      include: { statusHistory: true },
-      orderBy: { createdAt: "desc" },
+    const ordersList = await db.query.orders.findMany({
+      with: { statusHistory: true },
+      orderBy: (orders, { desc }) => desc(orders.createdAt),
     });
 
-    return { success: true as const, status: 200, data: orders };
+    return { success: true as const, status: 200, data: ordersList };
   };
 
   const updateOrderStatus = async (
     id: string,
     input: UpdateOrderStatusInput,
   ) => {
-    const order = await prisma.order.findUnique({ where: { id } });
+    const order = await db.query.orders.findFirst({
+      where: (orders, { eq }) => eq(orders.id, id),
+    });
 
     if (!order) {
       return {
@@ -366,21 +382,27 @@ export const createOrderService = (
       };
     }
 
-    const [updatedOrder] = await prisma.$transaction([
-      prisma.order.update({
-        where: { id },
-        data: {
-          status: input.status,
-          statusHistory: {
-            create: {
-              status: input.status,
-              note: input.note ?? null,
-            },
-          },
-        },
-        include: { statusHistory: true },
-      }),
-    ]);
+    const updatedOrder = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(orders)
+        .set({ status: input.status, updatedAt: new Date() })
+        .where(eq(orders.id, id))
+        .returning();
+
+      await tx.insert(orderStatusHistory).values({
+        orderId: id,
+        status: input.status,
+        note: input.note ?? null,
+      });
+
+      // Fetch fresh status history to return with order
+      const history = await tx.query.orderStatusHistory.findMany({
+        where: (h, { eq }) => eq(h.orderId, id),
+        orderBy: (h, { asc }) => asc(h.createdAt),
+      });
+
+      return { ...updated, statusHistory: history };
+    });
 
     logger.info(
       { orderId: id, from: order.status, to: input.status },

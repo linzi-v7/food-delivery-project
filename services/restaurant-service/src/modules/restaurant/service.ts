@@ -1,19 +1,23 @@
-import { PrismaClient } from "../../generated/client.js";
+import { eq, desc } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import * as schema from "../../db/schema.js";
+import { restaurants } from "../../db/schema.js";
 import type {
   CreateRestaurantInput,
   UpdateRestaurantInput,
 } from "./validation.js";
 
-export const createRestaurantService = (prisma: PrismaClient) => {
+export const createRestaurantService = (db: NodePgDatabase<typeof schema>) => {
 
   const createRestaurant = async (input: CreateRestaurantInput) => {
-    const restaurant = await prisma.restaurant.create({
-      data: {
+    const [restaurant] = await db
+      .insert(restaurants)
+      .values({
         name: input.name,
         address: input.address,
         cuisine: input.cuisine,
-      },
-    });
+      })
+      .returning();
 
     console.log("Restaurant created", { restaurantId: restaurant.id });
 
@@ -25,21 +29,21 @@ export const createRestaurantService = (prisma: PrismaClient) => {
   };
 
   const listRestaurants = async () => {
-    const restaurants = await prisma.restaurant.findMany({
-      orderBy: { createdAt: "desc" },
+    const result = await db.query.restaurants.findMany({
+      orderBy: (r, { desc }) => desc(r.createdAt),
     });
 
     return {
       success: true as const,
       status: 200,
-      data: restaurants,
+      data: result,
     };
   };
 
   const getRestaurant = async (id: string) => {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id },
-      include: { menuItems: true },
+    const restaurant = await db.query.restaurants.findFirst({
+      where: (r, { eq }) => eq(r.id, id),
+      with: { menuItems: true },
     });
 
     if (!restaurant) {
@@ -61,7 +65,9 @@ export const createRestaurantService = (prisma: PrismaClient) => {
   };
 
   const updateRestaurant = async (id: string, input: UpdateRestaurantInput) => {
-    const existing = await prisma.restaurant.findUnique({ where: { id } });
+    const existing = await db.query.restaurants.findFirst({
+      where: (r, { eq }) => eq(r.id, id),
+    });
 
     if (!existing) {
       return {
@@ -74,10 +80,11 @@ export const createRestaurantService = (prisma: PrismaClient) => {
       };
     }
 
-    const restaurant = await prisma.restaurant.update({
-      where: { id },
-      data: input,
-    });
+    const [restaurant] = await db
+      .update(restaurants)
+      .set(input)
+      .where(eq(restaurants.id, id))
+      .returning();
 
     console.log("Restaurant updated", { restaurantId: id });
 

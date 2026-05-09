@@ -1,5 +1,5 @@
 import { loadConfig } from "./config/index.js";
-import { prisma } from "./db/client.js";
+import { pool } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 import { createPaymentService } from "./modules/payment/service.js";
 import { createApp } from "./app.js";
@@ -23,7 +23,6 @@ const main = async () => {
   }
 
   const paymentService = createPaymentService(
-    prisma,
     config.PAYMENT_SUCCESS_RATE,
     config.PAYMENT_PROCESSING_DELAY_MS,
   );
@@ -38,7 +37,7 @@ const main = async () => {
     console.log("Shutting down gracefully", { signal });
 
     server.close(async () => {
-      await prisma.$disconnect();
+      await pool.end();
       console.log("Server closed");
       process.exit(0);
     });

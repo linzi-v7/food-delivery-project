@@ -1,4 +1,7 @@
-import type { PrismaClient } from "../generated/client.js";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import * as schema from "./schema.js";
+import { restaurants, menuItems } from "./schema.js";
+import type { NewMenuItem } from "./schema.js";
 
 const SEED_RESTAURANTS = [
   {
@@ -59,11 +62,7 @@ const SEED_RESTAURANTS = [
     address: "321 Elm St, Chinatown",
     cuisine: "Chinese",
     menu: [
-      {
-        name: "Kung Pao Chicken",
-        description: "Spicy stir-fried chicken with peanuts, vegetables, and chili peppers",
-        price: 15.99,
-      },
+      { name: "Kung Pao Chicken", description: "Spicy stir-fried chicken with peanuts, vegetables, and chili peppers", price: 15.99 },
       { name: "Sweet and Sour Pork", description: "Crispy battered pork in tangy sweet and sour sauce", price: 14.5 },
       { name: "Mapo Tofu", description: "Soft tofu in spicy Sichuan peppercorn and minced pork sauce", price: 13.99 },
       { name: "Beef Chow Fun", description: "Wide rice noodles wok-fried with tender beef and bean sprouts", price: 16.5 },
@@ -82,41 +81,17 @@ const SEED_RESTAURANTS = [
     address: "654 Maple Dr, Suburbs",
     cuisine: "American",
     menu: [
-      {
-        name: "Classic Cheeseburger",
-        description: "Angus beef patty with cheddar, lettuce, tomato, special sauce",
-        price: 11.99,
-      },
-      {
-        name: "Bacon BBQ Burger",
-        description: "Beef patty with smoked bacon, BBQ sauce, onion rings, jack cheese",
-        price: 14.99,
-      },
-      {
-        name: "Double Smash Burger",
-        description: "Two smashed patties with American cheese, pickles, grilled onions",
-        price: 15.99,
-      },
+      { name: "Classic Cheeseburger", description: "Angus beef patty with cheddar, lettuce, tomato, special sauce", price: 11.99 },
+      { name: "Bacon BBQ Burger", description: "Beef patty with smoked bacon, BBQ sauce, onion rings, jack cheese", price: 14.99 },
+      { name: "Double Smash Burger", description: "Two smashed patties with American cheese, pickles, grilled onions", price: 15.99 },
       { name: "Veggie Burger", description: "House-made black bean and quinoa patty with avocado and sprouts", price: 12.5 },
       { name: "Loaded Fries", description: "Crispy fries topped with cheese sauce, bacon bits, green onions", price: 9.99 },
-      {
-        name: "Buffalo Wings (10 pcs)",
-        description: "Crispy chicken wings tossed in spicy buffalo sauce with ranch",
-        price: 14.99,
-      },
+      { name: "Buffalo Wings (10 pcs)", description: "Crispy chicken wings tossed in spicy buffalo sauce with ranch", price: 14.99 },
       { name: "Onion Rings", description: "Thick-cut beer-battered onion rings with chipotle mayo", price: 7.99 },
       { name: "Milkshake (16oz)", description: "Thick hand-spun shake — vanilla, chocolate, or strawberry", price: 6.99 },
-      {
-        name: "Chicken Tenders (5 pcs)",
-        description: "Crispy buttermilk fried chicken tenders with honey mustard",
-        price: 12.99,
-      },
+      { name: "Chicken Tenders (5 pcs)", description: "Crispy buttermilk fried chicken tenders with honey mustard", price: 12.99 },
       { name: "Caesar Salad", description: "Romaine with parmesan, croutons, and classic Caesar dressing", price: 10.5 },
-      {
-        name: "Philly Cheesesteak",
-        description: "Thinly sliced steak with melted provolone and grilled onions on a hoagie",
-        price: 16.5,
-      },
+      { name: "Philly Cheesesteak", description: "Thinly sliced steak with melted provolone and grilled onions on a hoagie", price: 16.5 },
     ],
   },
   {
@@ -126,11 +101,7 @@ const SEED_RESTAURANTS = [
     menu: [
       { name: "Butter Chicken", description: "Tender chicken in creamy tomato and butter sauce with fenugreek", price: 16.99 },
       { name: "Chicken Tikka Masala", description: "Marinated chicken chunks in spiced yogurt-tomato gravy", price: 17.5 },
-      {
-        name: "Lamb Biryani",
-        description: "Fragrant basmati rice layered with spiced lamb and caramelized onions",
-        price: 18.99,
-      },
+      { name: "Lamb Biryani", description: "Fragrant basmati rice layered with spiced lamb and caramelized onions", price: 18.99 },
       { name: "Palak Paneer", description: "Fresh cottage cheese cubes in creamy spinach sauce", price: 14.99 },
       { name: "Garlic Naan (2 pcs)", description: "Soft leavened flatbread brushed with garlic butter", price: 4.99 },
       { name: "Samosas (4 pcs)", description: "Crispy pastry filled with spiced potatoes and peas, mint chutney", price: 7.99 },
@@ -177,31 +148,35 @@ const SEED_RESTAURANTS = [
   },
 ];
 
-export const runSeed = async (prisma: PrismaClient): Promise<void> => {
-  const count = await prisma.restaurant.count();
-  if (count > 1) {
-    console.log("Restaurants already exist, skipping seed", { count });
+export const runSeed = async (db: NodePgDatabase<typeof schema>): Promise<void> => {
+  const existing = await db.select().from(restaurants);
+
+  if (existing.length > 1) {
+    console.log("Restaurants already exist, skipping seed", { count: existing.length });
     return;
   }
 
   console.log("Seeding restaurants and menus...");
 
   for (const r of SEED_RESTAURANTS) {
-    await prisma.restaurant.create({
-      data: {
+    const [created] = await db
+      .insert(restaurants)
+      .values({
         name: r.name,
         address: r.address,
         cuisine: r.cuisine,
-        menuItems: {
-          create: r.menu.map((item) => ({
-            name: item.name,
-            description: item.description,
-            price: item.price,
-            available: true,
-          })),
-        },
-      },
-    });
+      })
+      .returning();
+
+    const items: NewMenuItem[] = r.menu.map((item) => ({
+      name: item.name,
+      description: item.description,
+      price: item.price,
+      available: true,
+      restaurantId: created.id,
+    }));
+
+    await db.insert(menuItems).values(items);
   }
 
   const totalItems = SEED_RESTAURANTS.reduce((s, r) => s + r.menu.length, 0);

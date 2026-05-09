@@ -1,8 +1,9 @@
-import { PrismaClient } from "../../generated/client.js";
+import { eq, desc } from "drizzle-orm";
+import { db } from "../../db/index.js";
+import { transactions } from "../../db/schema.js";
 import type { InitiatePaymentInput } from "./validation.js";
 
 export const createPaymentService = (
-  prisma: PrismaClient,
   successRate: number,
   processingDelayMs: number,
 ) => {
@@ -15,10 +16,10 @@ export const createPaymentService = (
     // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, processingDelayMs));
 
-    await prisma.transaction.update({
-      where: { transactionId },
-      data: { status },
-    });
+    await db
+      .update(transactions)
+      .set({ status })
+      .where(eq(transactions.transactionId, transactionId));
 
     console.log("Payment processed", { transactionId, status });
     return status;
@@ -26,14 +27,15 @@ export const createPaymentService = (
 
   const initiatePayment = async (input: InitiatePaymentInput) => {
     // Create transaction as pending
-    const transaction = await prisma.transaction.create({
-      data: {
+    const [transaction] = await db
+      .insert(transactions)
+      .values({
         orderId: input.orderId ?? null,
         customerId: input.customerId ?? null,
         amount: input.amount,
         status: "pending",
-      },
-    });
+      })
+      .returning();
 
     console.log("Payment initiated", { transactionId: transaction.transactionId, amount: input.amount });
 
@@ -55,8 +57,8 @@ export const createPaymentService = (
   };
 
   const getTransaction = async (transactionId: string) => {
-    const transaction = await prisma.transaction.findUnique({
-      where: { transactionId },
+    const transaction = await db.query.transactions.findFirst({
+      where: (t, { eq }) => eq(t.transactionId, transactionId),
     });
 
     if (!transaction) {
@@ -83,9 +85,9 @@ export const createPaymentService = (
   };
 
   const getPaymentByOrder = async (orderId: string) => {
-    const transaction = await prisma.transaction.findFirst({
-      where: { orderId },
-      orderBy: { createdAt: "desc" },
+    const transaction = await db.query.transactions.findFirst({
+      where: (t, { eq }) => eq(t.orderId, orderId),
+      orderBy: (t, { desc }) => desc(t.createdAt),
     });
 
     if (!transaction) {
@@ -112,8 +114,8 @@ export const createPaymentService = (
   };
 
   const refundTransaction = async (transactionId: string) => {
-    const transaction = await prisma.transaction.findUnique({
-      where: { transactionId },
+    const transaction = await db.query.transactions.findFirst({
+      where: (t, { eq }) => eq(t.transactionId, transactionId),
     });
 
     if (!transaction) {
@@ -135,10 +137,11 @@ export const createPaymentService = (
       };
     }
 
-    const updated = await prisma.transaction.update({
-      where: { transactionId },
-      data: { status: "refunded" },
-    });
+    const [updated] = await db
+      .update(transactions)
+      .set({ status: "refunded" })
+      .where(eq(transactions.transactionId, transactionId))
+      .returning();
 
     console.log("Transaction refunded", { transactionId });
 

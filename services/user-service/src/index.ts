@@ -1,5 +1,5 @@
 import { loadConfig } from "./config/index.js";
-import { prisma } from "./db/client.js";
+import { pool } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 import { createUserService } from "./modules/user/service.js";
 import { createApp } from "./app.js";
@@ -21,7 +21,6 @@ const main = async () => {
   }
 
   const userService = createUserService(
-    prisma,
     config.JWT_SECRET,
     config.JWT_EXPIRES_IN,
     config.BCRYPT_SALT_ROUNDS
@@ -37,7 +36,7 @@ const main = async () => {
     console.log("Shutting down gracefully", { signal });
 
     server.close(async () => {
-      await prisma.$disconnect();
+      await pool.end();
       console.log("Server closed");
       process.exit(0);
     });

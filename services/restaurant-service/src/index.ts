@@ -1,5 +1,5 @@
 import { loadConfig } from "./config/index.js";
-import { prisma } from "./db/client.js";
+import { db, pool } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 import { runSeed } from "./db/seed.js";
 import { createRestaurantService } from "./modules/restaurant/service.js";
@@ -17,14 +17,14 @@ const main = async () => {
 
   try {
     await runMigrations();
-    await runSeed(prisma);
+    await runSeed(db);
   } catch (error) {
     console.error("Failed to connect to database:", error);
     process.exit(1);
   }
 
-  const restaurantService = createRestaurantService(prisma);
-  const menuService = createMenuService(prisma);
+  const restaurantService = createRestaurantService(db);
+  const menuService = createMenuService(db);
 
   const app = createApp(
     restaurantService,
@@ -40,7 +40,7 @@ const main = async () => {
     console.log("Shutting down gracefully, signal:", signal);
 
     server.close(async () => {
-      await prisma.$disconnect();
+      await pool.end();
       console.log("Server closed");
       process.exit(0);
     });

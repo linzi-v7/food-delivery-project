@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "../../generated/client.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/index.js";
+import { users } from "../../db/schema.js";
 import type {
   RegisterInput,
   LoginInput,
@@ -8,14 +10,13 @@ import type {
 } from "./validation.js";
 
 export const createUserService = (
-  prisma: PrismaClient,
   jwtSecret: string,
   jwtExpiresIn: string,
   saltRounds: number
 ) => {
   const register = async (input: RegisterInput) => {
-    const existing = await prisma.user.findUnique({
-      where: { email: input.email },
+    const existing = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, input.email),
     });
 
     if (existing) {
@@ -31,14 +32,15 @@ export const createUserService = (
 
     const passwordHash = await bcrypt.hash(input.password, saltRounds);
 
-    const user = await prisma.user.create({
-      data: {
+    const [user] = await db
+      .insert(users)
+      .values({
         name: input.name,
         email: input.email,
         passwordHash,
         role: input.role,
-      },
-    });
+      })
+      .returning();
 
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role },
@@ -63,8 +65,8 @@ export const createUserService = (
   };
 
   const login = async (input: LoginInput) => {
-    const user = await prisma.user.findUnique({
-      where: { email: input.email },
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, input.email),
     });
 
     if (!user) {
@@ -114,9 +116,9 @@ export const createUserService = (
   };
 
   const getProfile = async (userId: string) => {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, userId),
+      columns: {
         id: true,
         name: true,
         email: true,
@@ -145,8 +147,8 @@ export const createUserService = (
   };
 
   const listUsers = async () => {
-    const users = await prisma.user.findMany({
-      select: {
+    const usersList = await db.query.users.findMany({
+      columns: {
         id: true,
         name: true,
         email: true,
@@ -154,13 +156,13 @@ export const createUserService = (
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: (users, { desc }) => desc(users.createdAt),
     });
 
     return {
       success: true as const,
       status: 200,
-      data: users,
+      data: usersList,
     };
   };
 
@@ -182,11 +184,10 @@ export const createUserService = (
     }
 
     if (input.email) {
-      const existing = await prisma.user.findFirst({
-        where: {
-          email: input.email,
-          id: { not: userId },
-        },
+      const email = input.email;
+      const existing = await db.query.users.findFirst({
+        where: (users, { eq, and, ne }) =>
+          and(eq(users.email, email), ne(users.id, userId)),
       });
 
       if (existing) {
@@ -201,18 +202,11 @@ export const createUserService = (
       }
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: input,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const [user] = await db
+      .update(users)
+      .set(input)
+      .where(eq(users.id, userId))
+      .returning();
 
     console.log("User profile updated", { userId });
 

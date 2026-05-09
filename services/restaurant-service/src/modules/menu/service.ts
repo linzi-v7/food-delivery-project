@@ -1,17 +1,20 @@
-import { PrismaClient } from "../../generated/client.js";
+import { eq, desc, and } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import * as schema from "../../db/schema.js";
+import { restaurants, menuItems } from "../../db/schema.js";
 import type {
   CreateMenuItemInput,
   UpdateMenuItemInput,
 } from "./validation.js";
 
-export const createMenuService = (prisma: PrismaClient) => {
+export const createMenuService = (db: NodePgDatabase<typeof schema>) => {
 
   const addMenuItem = async (
     restaurantId: string,
     input: CreateMenuItemInput
   ) => {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id: restaurantId },
+    const restaurant = await db.query.restaurants.findFirst({
+      where: (r, { eq }) => eq(r.id, restaurantId),
     });
 
     if (!restaurant) {
@@ -25,15 +28,16 @@ export const createMenuService = (prisma: PrismaClient) => {
       };
     }
 
-    const menuItem = await prisma.menuItem.create({
-      data: {
+    const [menuItem] = await db
+      .insert(menuItems)
+      .values({
         name: input.name,
         description: input.description,
         price: input.price,
         available: input.available,
         restaurantId,
-      },
-    });
+      })
+      .returning();
 
     console.log("Menu item added", { menuItemId: menuItem.id, restaurantId });
 
@@ -45,8 +49,8 @@ export const createMenuService = (prisma: PrismaClient) => {
   };
 
   const getMenuItems = async (restaurantId: string) => {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id: restaurantId },
+    const restaurant = await db.query.restaurants.findFirst({
+      where: (r, { eq }) => eq(r.id, restaurantId),
     });
 
     if (!restaurant) {
@@ -60,15 +64,15 @@ export const createMenuService = (prisma: PrismaClient) => {
       };
     }
 
-    const menuItems = await prisma.menuItem.findMany({
-      where: { restaurantId },
-      orderBy: { createdAt: "desc" },
+    const items = await db.query.menuItems.findMany({
+      where: (m, { eq }) => eq(m.restaurantId, restaurantId),
+      orderBy: (m, { desc }) => desc(m.createdAt),
     });
 
     return {
       success: true as const,
       status: 200,
-      data: menuItems,
+      data: items,
     };
   };
 
@@ -77,8 +81,9 @@ export const createMenuService = (prisma: PrismaClient) => {
     itemId: string,
     input: UpdateMenuItemInput
   ) => {
-    const menuItem = await prisma.menuItem.findFirst({
-      where: { id: itemId, restaurantId },
+    const menuItem = await db.query.menuItems.findFirst({
+      where: (m, { eq }) =>
+        and(eq(m.id, itemId), eq(m.restaurantId, restaurantId)),
     });
 
     if (!menuItem) {
@@ -92,10 +97,11 @@ export const createMenuService = (prisma: PrismaClient) => {
       };
     }
 
-    const updated = await prisma.menuItem.update({
-      where: { id: itemId },
-      data: input,
-    });
+    const [updated] = await db
+      .update(menuItems)
+      .set(input)
+      .where(eq(menuItems.id, itemId))
+      .returning();
 
     console.log("Menu item updated", { menuItemId: itemId });
 
@@ -107,8 +113,9 @@ export const createMenuService = (prisma: PrismaClient) => {
   };
 
   const deleteMenuItem = async (restaurantId: string, itemId: string) => {
-    const menuItem = await prisma.menuItem.findFirst({
-      where: { id: itemId, restaurantId },
+    const menuItem = await db.query.menuItems.findFirst({
+      where: (m, { eq }) =>
+        and(eq(m.id, itemId), eq(m.restaurantId, restaurantId)),
     });
 
     if (!menuItem) {
@@ -122,7 +129,7 @@ export const createMenuService = (prisma: PrismaClient) => {
       };
     }
 
-    await prisma.menuItem.delete({ where: { id: itemId } });
+    await db.delete(menuItems).where(eq(menuItems.id, itemId));
 
     console.log("Menu item deleted", { menuItemId: itemId, restaurantId });
 

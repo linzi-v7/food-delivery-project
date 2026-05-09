@@ -44,8 +44,7 @@ services:
       - "3001:3001"
     volumes:
       - ./services/user-service/src:/app/src
-      - ./services/user-service/prisma:/app/prisma
-      - ./services/user-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/user-service/drizzle.config.ts:/app/drizzle.config.ts
       - ./services/user-service/tsconfig.json:/app/tsconfig.json
     environment:
       NODE_ENV: development
@@ -59,8 +58,7 @@ services:
       - "3002:3002"
     volumes:
       - ./services/restaurant-service/src:/app/src
-      - ./services/restaurant-service/prisma:/app/prisma
-      - ./services/restaurant-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/restaurant-service/drizzle.config.ts:/app/drizzle.config.ts
       - ./services/restaurant-service/tsconfig.json:/app/tsconfig.json
     environment:
       NODE_ENV: development
@@ -74,8 +72,7 @@ services:
       - "3003:3003"
     volumes:
       - ./services/order-service/src:/app/src
-      - ./services/order-service/prisma:/app/prisma
-      - ./services/order-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/order-service/drizzle.config.ts:/app/drizzle.config.ts
       - ./services/order-service/tsconfig.json:/app/tsconfig.json
     environment:
       NODE_ENV: development
@@ -89,8 +86,7 @@ services:
       - "3004:3004"
     volumes:
       - ./services/payment-service/src:/app/src
-      - ./services/payment-service/prisma:/app/prisma
-      - ./services/payment-service/prisma.config.ts:/app/prisma.config.ts
+      - ./services/payment-service/drizzle.config.ts:/app/drizzle.config.ts
       - ./services/payment-service/tsconfig.json:/app/tsconfig.json
     environment:
       NODE_ENV: development

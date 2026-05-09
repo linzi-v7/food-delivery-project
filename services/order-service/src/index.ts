@@ -1,5 +1,5 @@
 import { loadConfig } from "./config/index.js";
-import { prisma } from "./db/client.js";
+import { db, pool } from "./db/index.js";
 import { runMigrations } from "./db/migrate.js";
 import { createOrderService } from "./modules/order/service.js";
 import { createApp } from "./app.js";
@@ -24,7 +24,7 @@ const main = async () => {
   }
 
   const orderService = createOrderService(
-    prisma,
+    db,
     config.USER_SERVICE_URL,
     config.RESTAURANT_SERVICE_URL,
     config.PAYMENT_SERVICE_URL,
@@ -41,7 +41,7 @@ const main = async () => {
     console.log("Shutting down gracefully, signal:", signal);
 
     server.close(async () => {
-      await prisma.$disconnect();
+      await pool.end();
       console.log("Server closed");
       process.exit(0);
     });
