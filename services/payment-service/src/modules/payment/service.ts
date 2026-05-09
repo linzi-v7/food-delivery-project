@@ -1,6 +1,4 @@
 import { PrismaClient } from "../../generated/client.js";
-import { getLogger } from "../../utils/logger.js";
-import { paymentSuccessRate } from "../../middleware/metrics.js";
 import type { InitiatePaymentInput } from "./validation.js";
 
 export const createPaymentService = (
@@ -8,8 +6,6 @@ export const createPaymentService = (
   successRate: number,
   processingDelayMs: number,
 ) => {
-  const logger = getLogger();
-
   const processAndFinalize = async (
     transactionId: string,
   ): Promise<"succeeded" | "failed"> => {
@@ -24,22 +20,8 @@ export const createPaymentService = (
       data: { status },
     });
 
-    logger.info({ transactionId, status }, "Payment processed");
+    console.log("Payment processed", { transactionId, status });
     return status;
-  };
-
-  const updateSuccessRateMetric = async (): Promise<void> => {
-    try {
-      const [total, succeeded] = await Promise.all([
-        prisma.transaction.count(),
-        prisma.transaction.count({
-          where: { status: { in: ["succeeded", "refunded"] } },
-        }),
-      ]);
-      if (total > 0) paymentSuccessRate.set(succeeded / total);
-    } catch {
-      // silently ignore metric update failures
-    }
   };
 
   const initiatePayment = async (input: InitiatePaymentInput) => {
@@ -53,10 +35,7 @@ export const createPaymentService = (
       },
     });
 
-    logger.info(
-      { transactionId: transaction.transactionId, amount: input.amount },
-      "Payment initiated",
-    );
+    console.log("Payment initiated", { transactionId: transaction.transactionId, amount: input.amount });
 
     // Process synchronously — caller waits for the result
     const finalStatus = await processAndFinalize(transaction.transactionId);
@@ -161,7 +140,7 @@ export const createPaymentService = (
       data: { status: "refunded" },
     });
 
-    logger.info({ transactionId }, "Transaction refunded");
+    console.log("Transaction refunded", { transactionId });
 
     return {
       success: true as const,
@@ -178,16 +157,11 @@ export const createPaymentService = (
     };
   };
 
-  // Update success rate metric periodically
-  const metricInterval = setInterval(updateSuccessRateMetric, 30000);
-  updateSuccessRateMetric();
-
   return {
     initiatePayment,
     getTransaction,
     getPaymentByOrder,
     refundTransaction,
-    shutdown: () => clearInterval(metricInterval),
   };
 };
 

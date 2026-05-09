@@ -1,5 +1,4 @@
 import { loadConfig } from "./config/index.js";
-import { initLogger } from "./utils/logger.js";
 import { prisma } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import { createPaymentService } from "./modules/payment/service.js";
@@ -7,23 +6,19 @@ import { createApp } from "./app.js";
 
 const main = async () => {
   const config = loadConfig();
-  const logger = initLogger(config.LOG_LEVEL, config.NODE_ENV);
 
-  logger.info(
-    {
-      nodeEnv: config.NODE_ENV,
-      port: config.PORT,
-      logLevel: config.LOG_LEVEL,
-      successRate: config.PAYMENT_SUCCESS_RATE,
-      processingDelayMs: config.PAYMENT_PROCESSING_DELAY_MS,
-    },
-    "Starting payment-service",
-  );
+  console.log("Starting payment-service", {
+    nodeEnv: config.NODE_ENV,
+    port: config.PORT,
+    logLevel: config.LOG_LEVEL,
+    successRate: config.PAYMENT_SUCCESS_RATE,
+    processingDelayMs: config.PAYMENT_PROCESSING_DELAY_MS,
+  });
 
   try {
     await runMigrations();
   } catch (error) {
-    logger.error({ err: error }, "Failed to connect to database");
+    console.error("Failed to connect to database:", error);
     process.exit(1);
   }
 
@@ -33,24 +28,23 @@ const main = async () => {
     config.PAYMENT_PROCESSING_DELAY_MS,
   );
 
-  const app = createApp(logger, paymentService, config.CORS_ORIGIN);
+  const app = createApp(paymentService, config.CORS_ORIGIN);
 
   const server = app.listen(config.PORT, () => {
-    logger.info({ port: config.PORT }, "Server is ready");
+    console.log("Server is ready", { port: config.PORT });
   });
 
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, "Shutting down gracefully");
+    console.log("Shutting down gracefully", { signal });
 
     server.close(async () => {
-      paymentService.shutdown();
       await prisma.$disconnect();
-      logger.info("Server closed");
+      console.log("Server closed");
       process.exit(0);
     });
 
     setTimeout(() => {
-      logger.error("Forced shutdown after timeout");
+      console.error("Forced shutdown after timeout");
       process.exit(1);
     }, 10000).unref();
   };

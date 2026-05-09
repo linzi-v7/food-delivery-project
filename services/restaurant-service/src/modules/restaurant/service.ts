@@ -1,12 +1,10 @@
 import { PrismaClient } from "../../generated/client.js";
-import { getLogger } from "../../utils/logger.js";
 import type {
   CreateRestaurantInput,
   UpdateRestaurantInput,
 } from "./validation.js";
 
 export const createRestaurantService = (prisma: PrismaClient) => {
-  const logger = getLogger();
 
   const createRestaurant = async (input: CreateRestaurantInput) => {
     const restaurant = await prisma.restaurant.create({
@@ -17,7 +15,7 @@ export const createRestaurantService = (prisma: PrismaClient) => {
       },
     });
 
-    logger.info({ restaurantId: restaurant.id }, "Restaurant created");
+    console.log("Restaurant created", { restaurantId: restaurant.id });
 
     return {
       success: true as const,
@@ -81,7 +79,7 @@ export const createRestaurantService = (prisma: PrismaClient) => {
       data: input,
     });
 
-    logger.info({ restaurantId: id }, "Restaurant updated");
+    console.log("Restaurant updated", { restaurantId: id });
 
     return {
       success: true as const,

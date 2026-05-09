@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "../../generated/client.js";
-import { getLogger } from "../../utils/logger.js";
 import type {
   RegisterInput,
   LoginInput,
@@ -14,8 +13,6 @@ export const createUserService = (
   jwtExpiresIn: string,
   saltRounds: number
 ) => {
-  const logger = getLogger();
-
   const register = async (input: RegisterInput) => {
     const existing = await prisma.user.findUnique({
       where: { email: input.email },
@@ -49,7 +46,7 @@ export const createUserService = (
       { expiresIn: jwtExpiresIn } as jwt.SignOptions
     );
 
-    logger.info({ userId: user.id, email: user.email }, "User registered");
+    console.log("User registered", { userId: user.id, email: user.email });
 
     return {
       success: true as const,
@@ -100,7 +97,7 @@ export const createUserService = (
       { expiresIn: jwtExpiresIn } as jwt.SignOptions
     );
 
-    logger.info({ userId: user.id }, "User logged in");
+    console.log("User logged in", { userId: user.id });
 
     return {
       success: true as const,
@@ -217,7 +214,7 @@ export const createUserService = (
       },
     });
 
-    logger.info({ userId }, "User profile updated");
+    console.log("User profile updated", { userId });
 
     return {
       success: true as const,

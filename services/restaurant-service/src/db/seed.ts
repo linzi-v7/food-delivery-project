@@ -1,5 +1,4 @@
 import type { PrismaClient } from "../generated/client.js";
-import { getLogger } from "../utils/logger.js";
 
 const SEED_RESTAURANTS = [
   {
@@ -179,15 +178,13 @@ const SEED_RESTAURANTS = [
 ];
 
 export const runSeed = async (prisma: PrismaClient): Promise<void> => {
-  const logger = getLogger();
-
   const count = await prisma.restaurant.count();
   if (count > 1) {
-    logger.info({ count }, "Restaurants already exist, skipping seed");
+    console.log("Restaurants already exist, skipping seed", { count });
     return;
   }
 
-  logger.info("Seeding restaurants and menus...");
+  console.log("Seeding restaurants and menus...");
 
   for (const r of SEED_RESTAURANTS) {
     await prisma.restaurant.create({
@@ -208,5 +205,5 @@ export const runSeed = async (prisma: PrismaClient): Promise<void> => {
   }
 
   const totalItems = SEED_RESTAURANTS.reduce((s, r) => s + r.menu.length, 0);
-  logger.info({ restaurants: SEED_RESTAURANTS.length, menuItems: totalItems }, "Seed complete");
+  console.log("Seed complete", { restaurants: SEED_RESTAURANTS.length, menuItems: totalItems });
 };

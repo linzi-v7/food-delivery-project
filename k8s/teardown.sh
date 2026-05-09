@@ -5,16 +5,14 @@
 # Deletes all resources in reverse dependency order:
 #   1. HorizontalPodAutoscalers
 #   2. Ingresses
-#   3. Monitoring stack (deployments, daemonsets, services, configmaps,
-#      secrets, PVCs)
-#   4. Application Services
-#   5. Application Deployments
-#   6. Database Services
-#   7. Database Deployments
-#   8. PersistentVolumeClaims
-#   9. Secrets
-#  10. ConfigMaps
-#  11. Namespaces
+#   3. Application Services
+#   4. Application Deployments
+#   5. Database Services
+#   6. Database Deployments
+#   7. PersistentVolumeClaims
+#   8. Secrets
+#   9. ConfigMaps
+#  10. Namespaces
 # ──────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -44,17 +42,6 @@ delete_resource() {
     warn "${kind}/${name} not found (already removed)."
 }
 
-# ── Utility: delete a DaemonSet (no namespace flag for kubectl 1.24+) ─
-delete_daemonset() {
-  local name="$1"
-  info "Deleting DaemonSet/${name}..."
-  kubectl delete daemonset "${name}" \
-    --namespace "${NAMESPACE}" \
-    --ignore-not-found 2>/dev/null && \
-    info "DaemonSet/${name} deleted." || \
-    warn "DaemonSet/${name} not found (already removed)."
-}
-
 # ══════════════════════════════════════════════════════════════════════
 # Step 1: HorizontalPodAutoscalers (depend on Deployments)
 # ══════════════════════════════════════════════════════════════════════
@@ -77,7 +64,6 @@ info "Tearing down Ingresses..."
 
 INGRESS_NAMES=(
   "api-gateway-ingress"
-  "grafana-ingress"
 )
 
 for ingress in "${INGRESS_NAMES[@]}"; do
@@ -85,74 +71,7 @@ for ingress in "${INGRESS_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 3: Monitoring stack (reverse of deploy order)
-# ══════════════════════════════════════════════════════════════════════
-info "Tearing down monitoring stack..."
-
-# DaemonSets first (they run pods)
-MONITORING_DAEMONSETS=(
-  "promtail"
-  "cadvisor"
-)
-
-for ds in "${MONITORING_DAEMONSETS[@]}"; do
-  delete_daemonset "${ds}"
-done
-
-# Monitoring Deployments
-MONITORING_DEPLOYMENTS=(
-  "grafana"
-  "loki"
-  "prometheus"
-)
-
-for deployment in "${MONITORING_DEPLOYMENTS[@]}"; do
-  delete_resource "deployment" "${deployment}"
-done
-
-# Monitoring Services
-MONITORING_SERVICES=(
-  "grafana-service"
-  "loki-service"
-  "prometheus-service"
-)
-
-for svc in "${MONITORING_SERVICES[@]}"; do
-  delete_resource "service" "${svc}"
-done
-
-# Monitoring ConfigMaps, Secrets, PVCs
-MONITORING_CONFIGMAPS=(
-  "grafana-config"
-  "loki-config"
-  "prometheus-config"
-  "promtail-config"
-)
-
-for cm in "${MONITORING_CONFIGMAPS[@]}"; do
-  delete_resource "configmap" "${cm}"
-done
-
-MONITORING_SECRETS=(
-  "grafana-secret"
-)
-
-for secret in "${MONITORING_SECRETS[@]}"; do
-  delete_resource "secret" "${secret}"
-done
-
-MONITORING_PVCS=(
-  "grafana-pvc"
-  "loki-pvc"
-  "prometheus-pvc"
-)
-
-for pvc in "${MONITORING_PVCS[@]}"; do
-  delete_resource "pvc" "${pvc}"
-done
-
-# ══════════════════════════════════════════════════════════════════════
-# Step 4: Application Services
+# Step 3: Application Services
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down application services..."
 
@@ -170,7 +89,7 @@ for svc in "${APP_SERVICE_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 5: Application Deployments
+# Step 4: Application Deployments
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down application deployments..."
 
@@ -188,7 +107,7 @@ for deployment in "${APP_DEPLOYMENT_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 6: Database Services
+# Step 5: Database Services
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down database services..."
 
@@ -204,7 +123,7 @@ for svc in "${DB_SERVICE_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 7: Database Deployments
+# Step 6: Database Deployments
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down database deployments..."
 
@@ -220,7 +139,7 @@ for deployment in "${DB_DEPLOYMENT_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 8: PersistentVolumeClaims
+# Step 7: PersistentVolumeClaims
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down PersistentVolumeClaims..."
 
@@ -236,7 +155,7 @@ for pvc in "${PVC_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 9: Secrets
+# Step 8: Secrets
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down secrets..."
 
@@ -252,7 +171,7 @@ for secret in "${SECRET_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 10: ConfigMaps
+# Step 9: ConfigMaps
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down ConfigMaps..."
 
@@ -268,7 +187,7 @@ for cm in "${CONFIGMAP_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 11: Namespaces (last — cascading delete for any stragglers)
+# Step 10: Namespaces (last — cascading delete for any stragglers)
 # ══════════════════════════════════════════════════════════════════════
 info "Tearing down namespaces..."
 

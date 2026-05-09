@@ -1,5 +1,4 @@
 import { loadConfig } from "./config/index.js";
-import { initLogger } from "./utils/logger.js";
 import { prisma } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import { createOrderService } from "./modules/order/service.js";
@@ -7,24 +6,20 @@ import { createApp } from "./app.js";
 
 const main = async () => {
   const config = loadConfig();
-  const logger = initLogger(config.LOG_LEVEL, config.NODE_ENV);
 
-  logger.info(
-    {
-      nodeEnv: config.NODE_ENV,
-      port: config.PORT,
-      logLevel: config.LOG_LEVEL,
-      userServiceUrl: config.USER_SERVICE_URL,
-      restaurantServiceUrl: config.RESTAURANT_SERVICE_URL,
-      hasJwtSecret: !!config.JWT_SECRET,
-    },
-    "Starting order-service"
-  );
+  console.log("Starting order-service", {
+    nodeEnv: config.NODE_ENV,
+    port: config.PORT,
+    logLevel: config.LOG_LEVEL,
+    userServiceUrl: config.USER_SERVICE_URL,
+    restaurantServiceUrl: config.RESTAURANT_SERVICE_URL,
+    hasJwtSecret: !!config.JWT_SECRET,
+  });
 
   try {
     await runMigrations();
   } catch (error) {
-    logger.error({ err: error }, "Failed to connect to database");
+    console.error("Failed to connect to database", error);
     process.exit(1);
   }
 
@@ -36,23 +31,23 @@ const main = async () => {
     config.JWT_SECRET,
   );
 
-  const app = createApp(logger, orderService, config.CORS_ORIGIN);
+  const app = createApp(orderService, config.CORS_ORIGIN);
 
   const server = app.listen(config.PORT, () => {
-    logger.info({ port: config.PORT }, "Server is ready");
+    console.log("Server is ready on port", config.PORT);
   });
 
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, "Shutting down gracefully");
+    console.log("Shutting down gracefully, signal:", signal);
 
     server.close(async () => {
       await prisma.$disconnect();
-      logger.info("Server closed");
+      console.log("Server closed");
       process.exit(0);
     });
 
     setTimeout(() => {
-      logger.error("Forced shutdown after timeout");
+      console.error("Forced shutdown after timeout");
       process.exit(1);
     }, 10000).unref();
   };

@@ -11,7 +11,6 @@
 #   6. Application Deployments + Services
 #   7. Ingress
 #   8. HorizontalPodAutoscalers
-#   9. Monitoring (Prometheus, Grafana, Loki, Promtail, cAdvisor)
 # ──────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -133,37 +132,6 @@ apply_dir "ingress" "ingress"
 # ── Step 8: HorizontalPodAutoscalers ──────────────────────────────────
 apply_dir "hpa" "horizontal pod autoscalers"
 
-# ── Step 9: Monitoring Stack ──────────────────────────────────────────
-info "Deploying monitoring stack..."
-
-apply_dir "monitoring" "monitoring manifests"
-
-MONITORING_DEPLOYMENTS=(
-  "prometheus"
-  "grafana"
-  "loki"
-)
-
-for deployment in "${MONITORING_DEPLOYMENTS[@]}"; do
-  info "Waiting for ${deployment}..."
-  kubectl rollout status "deployment/${deployment}" \
-    --namespace "${NAMESPACE}" \
-    --timeout "${TIMEOUT_SECONDS}s" || {
-    warn "${deployment} did not become ready within ${TIMEOUT_SECONDS}s."
-  }
-done
-
-# Wait for DaemonSet pods
-info "Waiting for promtail and cadvisor daemonsets..."
-kubectl wait --for=condition=Ready pod \
-  -l "app in (promtail,cadvisor)" \
-  --namespace "${NAMESPACE}" \
-  --timeout "${TIMEOUT_SECONDS}s" 2>/dev/null || {
-  warn "Some DaemonSet pods not ready yet. Check with kubectl get pods -l 'app in (promtail,cadvisor)' -n ${NAMESPACE}"
-}
-
-info "Monitoring stack deployed."
-
 # ── Final status ──────────────────────────────────────────────────────
 echo ""
 info "=============================================="
@@ -184,11 +152,6 @@ kubectl get ingress -n "${NAMESPACE}"
 echo ""
 info "HPA (${NAMESPACE}):"
 kubectl get hpa -n "${NAMESPACE}"
-echo ""
-info "Monitoring pods (${NAMESPACE}):"
-kubectl get pods -n "${NAMESPACE}" -l "component=monitoring"
-echo ""
-info "Grafana accessible at:  http://fooddelivery.local/grafana"
 echo ""
 info "Add to /etc/hosts:  127.0.0.1  fooddelivery.local"
 info "Then visit:  http://fooddelivery.local"

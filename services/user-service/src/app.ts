@@ -1,14 +1,10 @@
 import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
-import type { Logger } from "./utils/logger.js";
 import type { UserService } from "./modules/user/service.js";
-import { requestLogger } from "./middleware/request-logger.js";
-import { metricsMiddleware, metricsEndpoint } from "./middleware/metrics.js";
 import { createUserRoutes } from "./modules/user/routes.js";
 
 export const createApp = (
-  logger: Logger,
   userService: UserService,
   corsOrigin: string
 ) => {
@@ -28,12 +24,6 @@ export const createApp = (
   // Body parsing (built into Express 5.x)
   app.use(express.json());
 
-  // Request logging
-  app.use(requestLogger);
-
-  // Prometheus metrics
-  app.use(metricsMiddleware);
-
   // Health check
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({
@@ -42,9 +32,6 @@ export const createApp = (
       timestamp: new Date().toISOString(),
     });
   });
-
-  // Metrics endpoint
-  app.get("/metrics", metricsEndpoint);
 
   // API routes
   app.use(createUserRoutes(userService));
@@ -62,7 +49,7 @@ export const createApp = (
   // Error handler (Express 5: 4-argument signature)
   app.use(
     (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-      logger.error({ err });
+      console.error(err);
 
       res.status(500).json({
         error: {

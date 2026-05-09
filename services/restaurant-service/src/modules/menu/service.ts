@@ -1,12 +1,10 @@
 import { PrismaClient } from "../../generated/client.js";
-import { getLogger } from "../../utils/logger.js";
 import type {
   CreateMenuItemInput,
   UpdateMenuItemInput,
 } from "./validation.js";
 
 export const createMenuService = (prisma: PrismaClient) => {
-  const logger = getLogger();
 
   const addMenuItem = async (
     restaurantId: string,
@@ -37,10 +35,7 @@ export const createMenuService = (prisma: PrismaClient) => {
       },
     });
 
-    logger.info(
-      { menuItemId: menuItem.id, restaurantId },
-      "Menu item added"
-    );
+    console.log("Menu item added", { menuItemId: menuItem.id, restaurantId });
 
     return {
       success: true as const,
@@ -102,7 +97,7 @@ export const createMenuService = (prisma: PrismaClient) => {
       data: input,
     });
 
-    logger.info({ menuItemId: itemId }, "Menu item updated");
+    console.log("Menu item updated", { menuItemId: itemId });
 
     return {
       success: true as const,
@@ -129,7 +124,7 @@ export const createMenuService = (prisma: PrismaClient) => {
 
     await prisma.menuItem.delete({ where: { id: itemId } });
 
-    logger.info({ menuItemId: itemId, restaurantId }, "Menu item deleted");
+    console.log("Menu item deleted", { menuItemId: itemId, restaurantId });
 
     return {
       success: true as const,

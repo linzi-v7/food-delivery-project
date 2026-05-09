@@ -1,5 +1,4 @@
 import { PrismaClient } from "../../generated/client.js";
-import { getLogger } from "../../utils/logger.js";
 import jwt from "jsonwebtoken";
 import type {
   CreateOrderInput,
@@ -37,7 +36,7 @@ export const createOrderService = (
   paymentServiceUrl: string | undefined,
   jwtSecret: string,
 ) => {
-  const logger = getLogger();
+  const logger = console;
 
   const generateServiceToken = (): string => {
     return jwt.sign(

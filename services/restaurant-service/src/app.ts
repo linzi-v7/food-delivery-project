@@ -1,16 +1,12 @@
 import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
-import type { Logger } from "./utils/logger.js";
 import type { RestaurantService } from "./modules/restaurant/service.js";
 import type { MenuService } from "./modules/menu/service.js";
-import { requestLogger } from "./middleware/request-logger.js";
-import { metricsMiddleware, metricsEndpoint } from "./middleware/metrics.js";
 import { createRestaurantRoutes } from "./modules/restaurant/routes.js";
 import { createMenuRoutes } from "./modules/menu/routes.js";
 
 export const createApp = (
-  logger: Logger,
   restaurantService: RestaurantService,
   menuService: MenuService,
   corsOrigin: string
@@ -28,10 +24,6 @@ export const createApp = (
 
   app.use(express.json());
 
-  app.use(requestLogger);
-
-  app.use(metricsMiddleware);
-
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({
       status: "healthy",
@@ -39,8 +31,6 @@ export const createApp = (
       timestamp: new Date().toISOString(),
     });
   });
-
-  app.get("/metrics", metricsEndpoint);
 
   app.use(createRestaurantRoutes(restaurantService));
   app.use(createMenuRoutes(menuService));
@@ -56,7 +46,7 @@ export const createApp = (
 
   app.use(
     (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-      logger.error({ err });
+      console.error(err);
 
       res.status(500).json({
         error: {

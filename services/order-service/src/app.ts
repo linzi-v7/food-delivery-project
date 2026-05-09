@@ -1,14 +1,10 @@
 import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
-import type { Logger } from "./utils/logger.js";
 import type { OrderService } from "./modules/order/service.js";
-import { requestLogger } from "./middleware/request-logger.js";
-import { metricsMiddleware, metricsEndpoint } from "./middleware/metrics.js";
 import { createOrderRoutes } from "./modules/order/routes.js";
 
 export const createApp = (
-  logger: Logger,
   orderService: OrderService,
   corsOrigin: string
 ) => {
@@ -25,10 +21,6 @@ export const createApp = (
 
   app.use(express.json());
 
-  app.use(requestLogger);
-
-  app.use(metricsMiddleware);
-
   app.get("/health", (_req: Request, res: Response) => {
     res.status(200).json({
       status: "healthy",
@@ -36,8 +28,6 @@ export const createApp = (
       timestamp: new Date().toISOString(),
     });
   });
-
-  app.get("/metrics", metricsEndpoint);
 
   app.use(createOrderRoutes(orderService));
 
@@ -52,7 +42,7 @@ export const createApp = (
 
   app.use(
     (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-      logger.error({ err });
+      console.error(err);
 
       res.status(500).json({
         error: {
