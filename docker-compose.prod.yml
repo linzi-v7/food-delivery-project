@@ -126,14 +126,14 @@ services:
           memory: "512m"
 
   # ═════════════════════════════════════════════════════════════════════
-  # API Gateway — exposed on port 80, 2 replicas
+  # API Gateway — exposed on port 80, 1 replica (port binding prevents multi-replica in Compose)
   # ═════════════════════════════════════════════════════════════════════
 
   api-gateway:
     ports:
       - "80:80"
     deploy:
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           cpus: "0.5"

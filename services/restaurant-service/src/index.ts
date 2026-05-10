@@ -17,7 +17,9 @@ const main = async () => {
 
   try {
     await runMigrations();
-    await runSeed(db);
+    if (config.NODE_ENV === "development") {
+      await runSeed(db);
+    }
   } catch (error) {
     console.error("Failed to connect to database:", error);
     process.exit(1);

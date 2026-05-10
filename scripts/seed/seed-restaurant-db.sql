@@ -9,13 +9,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 DO $$
 DECLARE
-    v_restaurant_id TEXT;
+    v_restaurant_id UUID;
 BEGIN
     -- Check if the test restaurant already exists
     IF NOT EXISTS (SELECT 1 FROM restaurants WHERE name = 'Test Bistro') THEN
 
         -- Insert restaurant
-        v_restaurant_id := gen_random_uuid()::text;
+        v_restaurant_id := gen_random_uuid();
         INSERT INTO restaurants (id, name, address, cuisine, available, created_at, updated_at)
         VALUES (
             v_restaurant_id,
@@ -31,7 +31,7 @@ BEGIN
         INSERT INTO menu_items (id, name, description, price, available, restaurant_id, created_at, updated_at)
         VALUES
             (
-                gen_random_uuid()::text,
+                gen_random_uuid(),
                 'Margherita Pizza',
                 'Classic tomato and mozzarella on a thin crust',
                 12.99,
@@ -41,7 +41,7 @@ BEGIN
                 NOW()
             ),
             (
-                gen_random_uuid()::text,
+                gen_random_uuid(),
                 'Pasta Carbonara',
                 'Creamy egg and bacon pasta with parmesan',
                 14.50,

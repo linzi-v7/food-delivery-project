@@ -33,28 +33,28 @@ services:
 
   user-service:
     environment:
-      NODE_ENV: test
+      NODE_ENV: testing
       LOG_LEVEL: info
       LOG_FORMAT: json
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user-service-db:5432/user_service"
 
   restaurant-service:
     environment:
-      NODE_ENV: test
+      NODE_ENV: testing
       LOG_LEVEL: info
       LOG_FORMAT: json
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@restaurant-service-db:5432/restaurant_service"
 
   order-service:
     environment:
-      NODE_ENV: test
+      NODE_ENV: testing
       LOG_LEVEL: info
       LOG_FORMAT: json
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@order-service-db:5432/order_service"
 
   payment-service:
     environment:
-      NODE_ENV: test
+      NODE_ENV: testing
       LOG_LEVEL: info
       LOG_FORMAT: json
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@payment-service-db:5432/payment_service"
@@ -65,7 +65,7 @@ services:
 
   frontend:
     environment:
-      NODE_ENV: test
+      NODE_ENV: testing
 
   # ═════════════════════════════════════════════════════════════════════
   # API Gateway — exposed on port 9080

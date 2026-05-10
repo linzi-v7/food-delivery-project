@@ -12,7 +12,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'test@example.com') THEN
         INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
         VALUES (
-            gen_random_uuid()::text,
+            gen_random_uuid(),
             'Test Customer',
             'test@example.com',
             crypt('password123', gen_salt('bf', 10)),
