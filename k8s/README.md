@@ -30,17 +30,31 @@ minikube start --cpus=4 --memory=8192 --disk-size=20g
 # 2. Enable the NGINX Ingress Controller
 minikube addons enable ingress
 
-# 3. Build all Docker images
-./k8s/scripts/build-images.sh
+# 3. Build images, load into Minikube, and deploy
+make k8s-deploy
 
-# 4. Load images into Minikube
-./k8s/scripts/load-images.sh
+# Or manually:
+# 3a. Build all Docker images
+# docker build -t fooddelivery/user-service:latest       ./services/user-service
+# docker build -t fooddelivery/restaurant-service:latest  ./services/restaurant-service
+# docker build -t fooddelivery/order-service:latest       ./services/order-service
+# docker build -t fooddelivery/payment-service:latest     ./services/payment-service
+# docker build -t fooddelivery/frontend:latest            ./frontend
+# docker build -t fooddelivery/api-gateway:latest         ./gateway
+#
+# 3b. Load images into Minikube
+# minikube image load fooddelivery/user-service:latest
+# minikube image load fooddelivery/restaurant-service:latest
+# minikube image load fooddelivery/order-service:latest
+# minikube image load fooddelivery/payment-service:latest
+# minikube image load fooddelivery/frontend:latest
+# minikube image load fooddelivery/api-gateway:latest
+#
+# 3c. Deploy
+# chmod +x k8s/deploy.sh
+# ./k8s/deploy.sh
 
-# 5. Deploy everything
-chmod +x k8s/deploy.sh
-./k8s/deploy.sh
-
-# 6. Add local DNS entry (administrator/root required)
+# 4. Add local DNS entry (administrator/root required)
 #    macOS  → sudo nano /etc/hosts
 #    Linux  → sudo nano /etc/hosts
 #    Windows → notepad C:\Windows\System32\drivers\etc\hosts
@@ -49,7 +63,7 @@ chmod +x k8s/deploy.sh
 #    For Minikube on macOS/Linux use:
 #      $(minikube ip)  fooddelivery.local
 
-# 7. Open the application
+# 5. Open the application
 #    http://fooddelivery.local
 ```
 
@@ -99,10 +113,10 @@ docker build -t fooddelivery/frontend:latest            ./frontend
 docker build -t fooddelivery/api-gateway:latest         ./gateway
 ```
 
-Or use the convenience script (if available):
+Or use the Makefile shortcut:
 
 ```bash
-bash k8s/scripts/build-images.sh
+make k8s-build-images
 ```
 
 ### 4. Loading Images into Minikube
@@ -118,10 +132,10 @@ minikube image load fooddelivery/frontend:latest
 minikube image load fooddelivery/api-gateway:latest
 ```
 
-Or use the convenience script:
+Or use the Makefile shortcut:
 
 ```bash
-bash k8s/scripts/load-images.sh
+make k8s-load-images
 ```
 
 Verify images are present in Minikube:
@@ -145,24 +159,22 @@ chmod +x k8s/deploy.sh
 
 **What gets deployed (in order):**
 
-1. **Namespaces** — `dev`, `test`, `prod`
-2. **ConfigMaps** — per-service environment configuration
-3. **Secrets** — database credentials and JWT signing key
-4. **PersistentVolumeClaims** — 1 Gi PVC per database
-5. **Database Deployments & Services** — PostgreSQL 16 Alpine (4 instances)
-6. **Microservice Deployments & Services** — 4 backend services
-7. **Frontend Deployment & Service** — static SPA
-8. **API Gateway Deployment & Service** — NGINX reverse proxy
-9. **Ingress** — routes external traffic to the API gateway
-10. **HorizontalPodAutoscalers** — CPU-based autoscaling for key services
+1. **Namespaces** — `prod`
+2. **Secret generation** — reads root `.env` and produces real Secret manifests into `.tmp/k8s-secrets/`
+3. **ConfigMaps** — per-service environment configuration (non-sensitive)
+4. **Secrets** — database credentials, JWT key, connection strings (from `.tmp/`)
+5. **PersistentVolumeClaims** — 1 Gi PVC per database
+6. **Database Deployments & Services** — PostgreSQL 16 Alpine (4 instances)
+7. **Microservice, Frontend & Gateway Deployments & Services** — all 6 app services
+8. **Ingress** — routes external traffic to the API gateway
+9. **HorizontalPodAutoscalers** — CPU-based autoscaling for key services
 
 All application resources are deployed into the `prod` namespace.
 
-> **⚠️ Secrets Warning:** The Secret manifests contain **placeholder base64
-> values** for demonstration purposes. Replace them with real values before
-> deploying to any non-local environment. Use `kubectl create secret` or a
-> tool like [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
-> for production.
+> **⚠️ Secrets:** The files in `k8s/secrets/` are **templates** with placeholder
+> values (safe to commit). The deploy script runs `k8s/scripts/generate-secrets.sh`
+> which reads your root `.env` and produces real, deployable Secret manifests in
+> `.tmp/k8s-secrets/` (gitignored). Never commit `.tmp/` or `.env` to git.
 
 ### 6. Local Access
 
@@ -270,9 +282,9 @@ The following services are configured with HorizontalPodAutoscalers
 
 | Service | Min Replicas | Max Replicas | Target CPU |
 |---------|-------------|-------------|------------|
-| user-service | 2 | 5 | 70% |
-| order-service | 2 | 5 | 70% |
-| payment-service | 2 | 5 | 70% |
+| user-service | 2 | 4 | 70% |
+| order-service | 2 | 6 | 60% |
+| payment-service | 2 | 4 | 70% |
 
 ---
 
@@ -387,7 +399,7 @@ chmod +x k8s/teardown.sh
 ```
 
 The teardown script removes resources in reverse dependency order:
-HPAs → Ingress → Deployments → Services → PVCs → Secrets → ConfigMaps →
+HPAs → Ingress → Services → Deployments → PVCs → Secrets → ConfigMaps →
 Namespace.
 
 To also stop the Minikube cluster:
@@ -415,17 +427,19 @@ k8s/
 ├── deploy.sh                           # Apply all manifests in order
 ├── teardown.sh                         # Delete all resources in reverse order
 ├── namespaces/
-│   └── namespaces.yaml                 # dev, test, prod namespaces
+│   └── namespaces.yaml                 # prod namespace
 ├── configmaps/
-│   ├── user-service-config.yaml
-│   ├── restaurant-service-config.yaml
-│   ├── order-service-config.yaml
-│   └── payment-service-config.yaml
+│   ├── user-service-configmap.yaml
+│   ├── restaurant-service-configmap.yaml
+│   ├── order-service-configmap.yaml
+│   └── payment-service-configmap.yaml
 ├── secrets/
-│   ├── user-service-secret.yaml
+│   ├── user-service-secret.yaml          # Template — see scripts/generate-secrets.sh
 │   ├── restaurant-service-secret.yaml
 │   ├── order-service-secret.yaml
 │   └── payment-service-secret.yaml
+├── scripts/
+│   └── generate-secrets.sh               # Generates real secrets from root .env
 ├── persistent-volumes/
 │   ├── user-db-pvc.yaml
 │   ├── restaurant-db-pvc.yaml
@@ -438,30 +452,27 @@ k8s/
 │   ├── payment-service-deployment.yaml
 │   ├── frontend-deployment.yaml
 │   ├── api-gateway-deployment.yaml
-│   ├── user-db-deployment.yaml
-│   ├── restaurant-db-deployment.yaml
-│   ├── order-db-deployment.yaml
-│   └── payment-db-deployment.yaml
+│   ├── user-service-db-deployment.yaml
+│   ├── restaurant-service-db-deployment.yaml
+│   ├── order-service-db-deployment.yaml
+│   └── payment-service-db-deployment.yaml
 ├── services/
-│   ├── user-service-service.yaml
-│   ├── restaurant-service-service.yaml
-│   ├── order-service-service.yaml
-│   ├── payment-service-service.yaml
-│   ├── frontend-service.yaml
-│   ├── api-gateway-service.yaml
-│   ├── user-db-service.yaml
-│   ├── restaurant-db-service.yaml
-│   ├── order-db-service.yaml
-│   └── payment-db-service.yaml
+│   ├── user-service.yaml
+│   ├── restaurant-service.yaml
+│   ├── order-service.yaml
+│   ├── payment-service.yaml
+│   ├── frontend.yaml
+│   ├── api-gateway.yaml
+│   ├── user-db.yaml
+│   ├── restaurant-db.yaml
+│   ├── order-db.yaml
+│   └── payment-db.yaml
 ├── ingress/
-│   └── fooddelivery-ingress.yaml
+│   └── ingress.yaml
 ├── hpa/
 │   ├── user-service-hpa.yaml
 │   ├── order-service-hpa.yaml
 │   └── payment-service-hpa.yaml
-└── scripts/
-    ├── build-images.sh
-    └── load-images.sh
 ```
 
 ---
@@ -556,7 +567,7 @@ kubectl config use-context minikube   # Switch to Minikube context
 
 ### Database Pods Fail to Start
 
-**Cause:** Missing or incorrect `POSTGRES_USER`/`POSTGRES_PASSWORD` in Secrets.
+**Cause:** Missing or incorrect `DB_USER`/`DB_PASSWORD` in Secrets.
 
 **Fix:**
 
@@ -565,11 +576,12 @@ kubectl config use-context minikube   # Switch to Minikube context
 kubectl get secrets -n prod
 
 # Inspect a secret (values are base64-encoded — decode to verify)
-kubectl get secret user-service-secret -n prod -o jsonpath='{.data.POSTGRES_USER}' | base64 -d
-kubectl get secret user-service-secret -n prod -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
+kubectl get secret user-service-secret -n prod -o jsonpath='{.data.DB_USER}' | base64 -d
+kubectl get secret user-service-secret -n prod -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 
-# Re-apply secrets if needed
-kubectl apply -f k8s/secrets/
+# Re-generate and re-apply secrets if needed
+bash k8s/scripts/generate-secrets.sh
+kubectl apply -f .tmp/k8s-secrets/
 ```
 
 ### Rate Limiting (HTTP 429)
@@ -591,10 +603,10 @@ variables is `.env.example` in the project root.
 
 | Service | ConfigMap Vars | Secret Vars |
 |---------|---------------|-------------|
-| **user-service** | `NODE_ENV`, `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `BCRYPT_SALT_ROUNDS`, `JWT_EXPIRES_IN`, `LOG_LEVEL` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET` |
-| **restaurant-service** | `NODE_ENV`, `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `LOG_LEVEL` | `POSTGRES_USER`, `POSTGRES_PASSWORD` |
-| **order-service** | `NODE_ENV`, `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `USER_SERVICE_URL`, `RESTAURANT_SERVICE_URL`, `PAYMENT_SERVICE_URL`, `LOG_LEVEL` | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET` |
-| **payment-service** | `NODE_ENV`, `PORT`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `ORDER_SERVICE_URL`, `PAYMENT_SUCCESS_RATE`, `PAYMENT_PROCESSING_DELAY_MS`, `LOG_LEVEL` | `POSTGRES_USER`, `POSTGRES_PASSWORD` |
+| **user-service** | `NODE_ENV`, `PORT`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `BCRYPT_SALT_ROUNDS`, `JWT_EXPIRES_IN` | `DB_USER`, `DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET` |
+| **restaurant-service** | `NODE_ENV`, `PORT`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN`, `DB_HOST`, `DB_PORT`, `DB_NAME` | `DB_USER`, `DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET` |
+| **order-service** | `NODE_ENV`, `PORT`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `USER_SERVICE_URL`, `RESTAURANT_SERVICE_URL`, `PAYMENT_SERVICE_URL` | `DB_USER`, `DB_PASSWORD`, `DATABASE_URL`, `JWT_SECRET` |
+| **payment-service** | `NODE_ENV`, `PORT`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ORIGIN`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `PAYMENT_SUCCESS_RATE`, `PAYMENT_PROCESSING_DELAY_MS` | `DB_USER`, `DB_PASSWORD`, `DATABASE_URL` |
 
 ---
 

@@ -12,8 +12,8 @@
   "dependencies": {
     "cors": "2.8.6",
     "dotenv": "17.4.2",
-    "drizzle-kit": "^0.31",
-    "drizzle-orm": "^0.44",
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.44.0",
     "express": "5.2.1",
     "helmet": "8.1.0",
     "jsonwebtoken": "9.0.3",

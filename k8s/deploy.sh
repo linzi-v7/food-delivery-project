@@ -4,13 +4,14 @@
 # Target: Minikube (Linux)
 # Applies all manifests in correct dependency order:
 #   1. Namespaces
-#   2. Secrets + ConfigMaps
-#   3. PersistentVolumeClaims
-#   4. Database Deployments + Services
-#   5. Wait for DB readiness
-#   6. Application Deployments + Services
-#   7. Ingress
-#   8. HorizontalPodAutoscalers
+#   2. Generate Secrets from root .env (→ .tmp/k8s-secrets/)
+#   3. ConfigMaps + Secrets
+#   4. PersistentVolumeClaims
+#   5. Database Deployments + Services
+#   6. Wait for DB readiness
+#   7. Application Deployments + Services
+#   8. Ingress
+#   9. HorizontalPodAutoscalers
 # ──────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -44,26 +45,35 @@ apply_dir() {
 # ── Step 1: Namespaces ────────────────────────────────────────────────
 apply_dir "namespaces" "namespaces"
 
-# ── Step 2: Secrets + ConfigMaps ──────────────────────────────────────
-apply_dir "secrets" "secrets"
-apply_dir "configmaps" "configmaps"
+# ── Step 2: Generate Secrets from root .env ───────────────────────────
+info "Generating secrets from .env..."
+bash "${SCRIPT_DIR}/scripts/generate-secrets.sh"
 
-# ── Step 3: PersistentVolumeClaims ────────────────────────────────────
+# ── Step 3: ConfigMaps + Secrets ──────────────────────────────────────
+apply_dir "configmaps" "configmaps"
+info "Applying generated secrets..."
+kubectl apply -f "${SCRIPT_DIR}/../.tmp/k8s-secrets/" || {
+  error "Failed to apply secrets"
+  exit 1
+}
+info "Secrets applied."
+
+# ── Step 4: PersistentVolumeClaims ────────────────────────────────────
 apply_dir "persistent-volumes" "persistent volume claims"
 
-# ── Step 4: Database Deployments + Services ───────────────────────────
+# ── Step 5: Database Deployments + Services ───────────────────────────
 info "Deploying databases..."
 kubectl apply -f "${SCRIPT_DIR}/deployments/user-service-db-deployment.yaml"
 kubectl apply -f "${SCRIPT_DIR}/deployments/restaurant-service-db-deployment.yaml"
 kubectl apply -f "${SCRIPT_DIR}/deployments/order-service-db-deployment.yaml"
 kubectl apply -f "${SCRIPT_DIR}/deployments/payment-service-db-deployment.yaml"
 
-kubectl apply -f "${SCRIPT_DIR}/services/user-db-service.yaml"
-kubectl apply -f "${SCRIPT_DIR}/services/restaurant-db-service.yaml"
-kubectl apply -f "${SCRIPT_DIR}/services/order-db-service.yaml"
-kubectl apply -f "${SCRIPT_DIR}/services/payment-db-service.yaml"
+kubectl apply -f "${SCRIPT_DIR}/services/user-db.yaml"
+kubectl apply -f "${SCRIPT_DIR}/services/restaurant-db.yaml"
+kubectl apply -f "${SCRIPT_DIR}/services/order-db.yaml"
+kubectl apply -f "${SCRIPT_DIR}/services/payment-db.yaml"
 
-# ── Step 5: Wait for database readiness ───────────────────────────────
+# ── Step 6: Wait for database readiness ───────────────────────────────
 info "Waiting for database pods to become ready (timeout: ${TIMEOUT_SECONDS}s)..."
 
 DB_DEPLOYMENTS=(
@@ -87,7 +97,7 @@ done
 
 info "All databases are ready."
 
-# ── Step 6: Application Deployments + Services ────────────────────────
+# ── Step 7: Application Deployments + Services ────────────────────────
 info "Deploying application services..."
 
 APP_DEPLOYMENTS=(
@@ -113,7 +123,7 @@ APP_SERVICES=(
 )
 
 for svc in "${APP_SERVICES[@]}"; do
-  kubectl apply -f "${SCRIPT_DIR}/services/${svc}-service.yaml"
+  kubectl apply -f "${SCRIPT_DIR}/services/${svc}.yaml"
 done
 
 # Wait for application deployments to be ready
@@ -126,10 +136,10 @@ for deployment in "${APP_DEPLOYMENTS[@]}"; do
   }
 done
 
-# ── Step 7: Ingress ───────────────────────────────────────────────────
+# ── Step 8: Ingress ───────────────────────────────────────────────────
 apply_dir "ingress" "ingress"
 
-# ── Step 8: HorizontalPodAutoscalers ──────────────────────────────────
+# ── Step 9: HorizontalPodAutoscalers ──────────────────────────────────
 apply_dir "hpa" "horizontal pod autoscalers"
 
 # ── Final status ──────────────────────────────────────────────────────
@@ -138,8 +148,8 @@ info "=============================================="
 info "  Deployment complete!"
 info "=============================================="
 echo ""
-info "Namespaces:"
-kubectl get namespaces dev test prod 2>/dev/null || true
+info "Namespace:"
+kubectl get namespace prod 2>/dev/null || true
 echo ""
 info "Pods (${NAMESPACE}):"
 kubectl get pods -n "${NAMESPACE}"

@@ -16,6 +16,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 # Copy source and build config
 COPY tsconfig.json tsconfig.prod.json ./
 COPY src/ ./src/
+COPY drizzle.config.ts ./
 
 # Build with production tsconfig (no declarations, no source maps)
 RUN npx tsc -p tsconfig.prod.json
@@ -49,8 +50,8 @@ WORKDIR /app
 # --chown avoids a separate RUN chown layer
 COPY --chown=appuser:appgroup --from=prod-deps /app/node_modules ./node_modules
 COPY --chown=appuser:appgroup --from=builder /app/dist ./dist
-COPY --chown=appuser:appgroup drizzle.config.ts ./
-COPY --chown=appuser:appgroup src/db/schema.ts ./src/db/schema.ts
+COPY --chown=appuser:appgroup --from=builder /app/src/db/schema.ts ./src/db/schema.ts
+COPY --chown=appuser:appgroup --from=builder /app/drizzle.config.ts ./
 COPY --chown=appuser:appgroup package.json ./
 
 USER appuser
@@ -61,7 +62,7 @@ ENV PORT=3004
 EXPOSE 3004
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3004/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3004/health || exit 1
 
 # dumb-init ensures proper SIGTERM forwarding
 # drizzle-kit push retries until database is available

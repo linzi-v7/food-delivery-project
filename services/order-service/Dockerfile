@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 # =============================================================================
 FROM node:22-alpine AS runtime
 
-# Runtime dependencies only — no Prisma build deps needed
+# Runtime dependencies only — Drizzle is pure JS, no native build deps needed
 RUN apk add --no-cache dumb-init wget
 
 # Create non-root user

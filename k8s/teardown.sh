@@ -176,10 +176,10 @@ done
 info "Tearing down ConfigMaps..."
 
 CONFIGMAP_NAMES=(
-  "payment-service-config"
-  "order-service-config"
-  "restaurant-service-config"
-  "user-service-config"
+  "payment-service-configmap"
+  "order-service-configmap"
+  "restaurant-service-configmap"
+  "user-service-configmap"
 )
 
 for cm in "${CONFIGMAP_NAMES[@]}"; do
@@ -187,22 +187,14 @@ for cm in "${CONFIGMAP_NAMES[@]}"; do
 done
 
 # ══════════════════════════════════════════════════════════════════════
-# Step 10: Namespaces (last — cascading delete for any stragglers)
+# Step 10: Namespace (last — cascading delete for any stragglers)
 # ══════════════════════════════════════════════════════════════════════
-info "Tearing down namespaces..."
+info "Tearing down namespace..."
 
-NAMESPACE_NAMES=(
-  "prod"
-  "test"
-  "dev"
-)
-
-for ns in "${NAMESPACE_NAMES[@]}"; do
-  warn "Deleting namespace ${ns} (this may take a moment)..."
-  kubectl delete namespace "${ns}" --ignore-not-found 2>/dev/null && \
-    info "Namespace ${ns} deleted." || \
-    warn "Namespace ${ns} not found (already removed)."
-done
+warn "Deleting namespace ${NAMESPACE} (this may take a moment)..."
+kubectl delete namespace "${NAMESPACE}" --ignore-not-found 2>/dev/null && \
+  info "Namespace ${NAMESPACE} deleted." || \
+  warn "Namespace ${NAMESPACE} not found (already removed)."
 
 # ── Final status ──────────────────────────────────────────────────────
 echo ""
