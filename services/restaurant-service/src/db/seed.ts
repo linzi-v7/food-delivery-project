@@ -151,7 +151,7 @@ const SEED_RESTAURANTS = [
 export const runSeed = async (db: NodePgDatabase<typeof schema>): Promise<void> => {
   const existing = await db.select().from(restaurants);
 
-  if (existing.length > 1) {
+  if (existing.length > 0) {
     console.log("Restaurants already exist, skipping seed", { count: existing.length });
     return;
   }
