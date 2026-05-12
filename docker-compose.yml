@@ -124,10 +124,6 @@ services:
     depends_on:
       order-service-db:
         condition: service_healthy
-      user-service:
-        condition: service_healthy
-      restaurant-service:
-        condition: service_healthy
     networks:
       - fooddelivery-network
 
@@ -144,8 +140,6 @@ services:
       PAYMENT_PROCESSING_DELAY_MS: ${PAYMENT_PROCESSING_DELAY_MS}
     depends_on:
       payment-service-db:
-        condition: service_healthy
-      order-service:
         condition: service_healthy
     networks:
       - fooddelivery-network
